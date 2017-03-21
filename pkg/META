@@ -1,0 +1,7 @@
+description = "Relational programming for OCaml"
+version = "%%VERSION_NUM%%"
+requires = "hmap"
+archive(byte) = "rel.cma"
+archive(native) = "rel.cmxa"
+plugin(byte) = "rel.cma"
+plugin(native) = "rel.cmxs"
