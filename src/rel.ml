@@ -45,11 +45,8 @@ type 'a var = 'a term Hmap.key
 and 'a term =
 | Var : 'a var -> 'a term
 | Const : ('a -> 'a -> bool) * 'a -> 'a term
-| Tuple : 'a tuple -> 'a term
-
-and 'a tuple =
-| Prod : 'b tid * 'b term * 'a tuple -> 'a tuple
-| Id : 'a tuple
+| Prod : 'b tid * 'b term * 'a term -> 'a term
+| Id : 'a term
 
 let new_var : unit -> 'a var = fun () -> Hmap.Key.create ()
 let eq_var : 'a 'b. 'a term -> 'b term -> bool =
@@ -67,7 +64,7 @@ let int = const ~eq:(( = ) : int -> int -> bool)
 (* Tuples *)
 
 type ('k, 'b) tupler =
-  { k : ('b tuple -> 'b term) -> ('k, 'b) tupler -> 'k }
+  { k : ('b term -> 'b term) -> ('k, 'b) tupler -> 'k }
 
 let stop : ('a term, 'a) tupler = { k = fun k v -> k Id }
 let prod : ('k, 'b) tupler -> ('a term -> 'k, 'b) tupler =
@@ -75,7 +72,7 @@ let prod : ('k, 'b) tupler -> ('a term -> 'k, 'b) tupler =
     let tid = tid () in
     { k = fun k s t -> spec.k (fun tup -> k (Prod (tid, t, tup))) spec }
 
-let tuple spec = spec.k (fun v -> Tuple v) spec
+let tuple spec = spec.k (fun v -> v) spec
 
 (* Unification *)
 
@@ -88,28 +85,21 @@ fun t s -> match t with
 
 let rec unify : type a. a term -> a term -> subst -> subst option =
 fun t0 t1 s -> match walk t0 s, walk t1 s with
+| Id, Id -> Some s
 | (Var _ as v0), (Var _ as v1) when eq_var v0 v1 -> Some s
 | (Var v), t | t, (Var v) -> Some (Hmap.add v t s)
 | Const (eq0, v0), Const (eq1, v1) ->
     if not (eq0 == eq1) then assert false else
     if eq0 v0 v1 then Some s else None
-| Tuple t0, Tuple t1 ->
-    let rec loop :
-        type b. b tuple -> b tuple -> subst -> subst option =
-      fun t0 t1 s -> match t0, t1 with
-      | Id, Id -> Some s
-      | Prod (tid0, p0, ps0), Prod (tid1, p1, ps1) ->
-          begin match teq tid0 tid1 with
-          | None -> None
-          | Some Teq ->
-              begin match unify p0 p1 s with
-              | None -> None
-              | Some s -> loop ps0 ps1 s
-              end
-          end
-      | _, _ -> None
-    in
-    loop t0 t1 s
+| Prod (tid0, v0, t0), Prod (tid1, v1, t1) ->
+    begin match teq tid0 tid1 with
+    | None -> None
+    | Some Teq ->
+        begin match unify v0 v1 s with
+        | None -> None
+        | Some s -> unify t0 t1 s
+        end
+    end
 | _, _ -> None
 
 (* State *)
@@ -164,7 +154,8 @@ fun t s -> match t with
     | Some t -> term_value t s
     | _ -> raise Exit
     end
-| Tuple tup -> failwith "DON'T KNOW"
+| Prod _ -> failwith "DON'T KNOW"
+| Id -> assert false
 
 type ('a, 'b) reify = 'a * (state -> 'b)
 
