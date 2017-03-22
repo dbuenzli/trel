@@ -2,7 +2,13 @@ Rel — Relational programming for OCaml
 -------------------------------------------------------------------------------
 %%VERSION%%
 
-Rel is TODO
+Rel is a typed relational programming language embedded in OCaml. Its
+term language is fully extensible and allows the client to inject and
+project OCaml types and functions to/from it.
+
+Rel is a typed and type-safe implementation of [microKanren][microKanren].
+
+[microKanren]: http://webyrd.net/scheme-2013/papers/HemannMuKanren2013.pdf
 
 Rel is distributed under the ISC license.
 

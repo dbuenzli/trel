@@ -11,26 +11,71 @@
    In Proceedings of the 2013 Workshop on Scheme and Functional Programming
    (Scheme '13), Alexandria, VA, 2013. *)
 
+(* Type identifiers
+   See http://alan.petitepomme.net/cwn/2015.03.24.html#1 *)
+
+module Tid = struct type _ t = .. end
+module type Tid = sig
+  type t
+  type _ Tid.t += Tid : t Tid.t
+end
+type 'a tid = (module Tid with type t = 'a)
+
+let tid () (type s) =
+  let module M = struct
+    type t = s
+    type _ Tid.t += Tid : t Tid.t
+  end
+  in
+  (module M : Tid with type t = s)
+
+type ('a, 'b) teq = Teq : ('a, 'a) teq
+
+let teq : type r s. r tid -> s tid -> (r, s) teq option =
+  fun r s ->
+    let module R = (val r : Tid with type t = r) in
+    let module S = (val s : Tid with type t = s) in
+    match R.Tid with
+    | S.Tid -> Some Teq
+    | _ -> None
+
 (* Terms *)
 
 type 'a var = 'a term Hmap.key
 and 'a term =
 | Var : 'a var -> 'a term
 | Const : ('a -> 'a -> bool) * 'a -> 'a term
-| Pair : 'a term * 'b term -> ('a * 'b) term
+| Tuple : 'a tuple -> 'a term
+
+and 'a tuple =
+| Prod : 'b tid * 'b term * 'a tuple -> 'a tuple
+| Id : 'a tuple
 
 let new_var : unit -> 'a var = fun () -> Hmap.Key.create ()
-
 let eq_var : 'a 'b. 'a term -> 'b term -> bool =
 fun t0 t1 -> match t0, t1 with
 | Var v0, Var v1 -> Hmap.Key.(equal (hide_type v0) (hide_type v1))
 | _ -> false
 
+(* Constants *)
+
 let const ?(eq = ( = )) v = Const (eq, v)
-let unit = const ~eq:(( = ) : unit -> unit -> bool)
+let unit = const ~eq:(( = ) : unit -> unit -> bool) ()
 let bool = const ~eq:(( = ) : bool -> bool -> bool)
 let int = const ~eq:(( = ) : int -> int -> bool)
-let pair t0 t1 = Pair (t0, t1)
+
+(* Tuples *)
+
+type ('k, 'b) tupler =
+  { k : ('b tuple -> 'b term) -> ('k, 'b) tupler -> 'k }
+
+let stop : ('a term, 'a) tupler = { k = fun k v -> k Id }
+let prod : ('k, 'b) tupler -> ('a term -> 'k, 'b) tupler =
+  fun spec ->
+    let tid = tid () in
+    { k = fun k s t -> spec.k (fun tup -> k (Prod (tid, t, tup))) spec }
+
+let tuple spec = spec.k (fun v -> Tuple v) spec
 
 (* Unification *)
 
@@ -45,14 +90,26 @@ let rec unify : type a. a term -> a term -> subst -> subst option =
 fun t0 t1 s -> match walk t0 s, walk t1 s with
 | (Var _ as v0), (Var _ as v1) when eq_var v0 v1 -> Some s
 | (Var v), t | t, (Var v) -> Some (Hmap.add v t s)
-| Pair (fst0, snd0) , Pair (fst1, snd1) ->
-    begin match unify fst0 fst1 s with
-    | None -> None
-    | Some s -> unify snd0 snd1 s
-    end
 | Const (eq0, v0), Const (eq1, v1) ->
     if not (eq0 == eq1) then assert false else
     if eq0 v0 v1 then Some s else None
+| Tuple t0, Tuple t1 ->
+    let rec loop :
+        type b. b tuple -> b tuple -> subst -> subst option =
+      fun t0 t1 s -> match t0, t1 with
+      | Id, Id -> Some s
+      | Prod (tid0, p0, ps0), Prod (tid1, p1, ps1) ->
+          begin match teq tid0 tid1 with
+          | None -> None
+          | Some Teq ->
+              begin match unify p0 p1 s with
+              | None -> None
+              | Some s -> loop ps0 ps1 s
+              end
+          end
+      | _, _ -> None
+    in
+    loop t0 t1 s
 | _, _ -> None
 
 (* State *)
@@ -97,7 +154,7 @@ let next = function
 
 let all r = r
 
-(* Finding goals *)
+(* Reifying goals *)
 
 let rec term_value : type a. a term -> subst -> a =
 fun t s -> match t with
@@ -107,14 +164,11 @@ fun t s -> match t with
     | Some t -> term_value t s
     | _ -> raise Exit
     end
-| Pair (t0, t1) ->
-    let v0 = term_value t0 s in
-    let v1 = term_value t1 s in
-    v0, v1
+| Tuple tup -> failwith "DON'T KNOW"
 
-type ('a, 'b) find = ('a * (state -> 'b))
+type ('a, 'b) reify = 'a * (state -> 'b)
 
-let lift inj proj = inj, (fun _ -> proj)
+let reify inj proj = inj, (fun _ -> proj)
 
 let var (inj, proj) =
   let var = Var (new_var ()) in
