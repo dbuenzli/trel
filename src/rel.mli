@@ -22,8 +22,6 @@
 type 'a term
 (** The type for terms denoting values of type ['a]. *)
 
-(** {2 Constants} *)
-
 val const : ?eq:('a -> 'a -> bool) -> 'a -> 'a term
 (** [const ~eq v] is a term for the constant [v]. During unification
     the constant is tested for equality with [eq] (defaults to
@@ -41,14 +39,31 @@ val bool : bool -> bool term
 val int : int -> int term
 (** [int i] is [const i] *)
 
-(* val pair : 'a term -> 'b term -> ('a * 'b) term *)
+val string : string -> string term
+(** [string s] is [const s]. *)
 
-(** {2 Finite tuples} *)
+val pair : unit -> 'a term -> 'b term -> ('a * 'b) term
+(** [pair ()] is a pair for two types of terms. *)
 
-type ('k, 'a) tupler
-val prod : ('k, 'b) tupler -> ('a term -> 'k, 'b) tupler
-val stop : ('a term, 'a) tupler
-val tuple : ('a, 'b) tupler -> 'a
+(** {2:func Functions} *)
+
+type ('a, 'b) func
+(** The type for lifting functions into the term language. ['b] is
+    eventually a function from terms to terms whose application
+    denotes application of the corresponding function. *)
+
+val constf : 'a -> ('a term -> 'b, 'b) func
+(** [constf f] is the function [f] as a term. *)
+
+val arg :
+  (('a -> 'b) term -> 'c, 'd) func -> (('b term -> 'c), 'a term -> 'd) func
+(** [arg fc] constructs the function from terms to terms of the underyling
+    lifted function, argument by argument. *)
+
+val func : ('a -> 'a, 'b) func -> 'b
+(** [func fc] is the function from terms to terms to lift the underlying
+    function to the term language. This can be used to unify application
+    of this function. *)
 
 (** {1 Goals} *)
 

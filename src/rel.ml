@@ -45,8 +45,7 @@ type 'a var = 'a term Hmap.key
 and 'a term =
 | Var : 'a var -> 'a term
 | Const : ('a -> 'a -> bool) * 'a -> 'a term
-| Prod : 'b tid * 'b term * 'a term -> 'a term
-| Id : 'a term
+| App : 'a tid * ('a -> 'b) term * 'a term -> 'b term
 
 let new_var : unit -> 'a var = fun () -> Hmap.Key.create ()
 let eq_var : 'a 'b. 'a term -> 'b term -> bool =
@@ -57,22 +56,26 @@ fun t0 t1 -> match t0, t1 with
 (* Constants *)
 
 let const ?(eq = ( = )) v = Const (eq, v)
+let constp v = const ~eq:(( == )) v
 let unit = const ~eq:(( = ) : unit -> unit -> bool) ()
 let bool = const ~eq:(( = ) : bool -> bool -> bool)
 let int = const ~eq:(( = ) : int -> int -> bool)
+let string = const ~eq:(( = ) : string -> string -> bool)
 
-(* Tuples *)
+let pair () x y =
+  let pair x y = (x, y) in
+  let tid0 = tid () in
+  let tid1 = tid () in
+  App (tid1, App (tid0, (constp pair), x), y)
 
-type ('k, 'b) tupler =
-  { k : ('b term -> 'b term) -> ('k, 'b) tupler -> 'k }
+type ('a, 'b) func = 'a -> 'b
 
-let stop : ('a term, 'a) tupler = { k = fun k v -> k Id }
-let prod : ('k, 'b) tupler -> ('a term -> 'k, 'b) tupler =
-  fun spec ->
-    let tid = tid () in
-    { k = fun k s t -> spec.k (fun tup -> k (Prod (tid, t, tup))) spec }
+let constf f k = k (constp f)
+let arg step =
+  let tid = tid () in
+  (fun k x -> step (fun f -> k (App (tid, f, x))))
 
-let tuple spec = spec.k (fun v -> v) spec
+let func step = step (fun x -> x)
 
 (* Unification *)
 
@@ -85,19 +88,18 @@ fun t s -> match t with
 
 let rec unify : type a. a term -> a term -> subst -> subst option =
 fun t0 t1 s -> match walk t0 s, walk t1 s with
-| Id, Id -> Some s
 | (Var _ as v0), (Var _ as v1) when eq_var v0 v1 -> Some s
 | (Var v), t | t, (Var v) -> Some (Hmap.add v t s)
 | Const (eq0, v0), Const (eq1, v1) ->
     if not (eq0 == eq1) then assert false else
     if eq0 v0 v1 then Some s else None
-| Prod (tid0, v0, t0), Prod (tid1, v1, t1) ->
+| App (tid0, f0, v0), App (tid1, f1, v1) ->
     begin match teq tid0 tid1 with
     | None -> None
     | Some Teq ->
         begin match unify v0 v1 s with
         | None -> None
-        | Some s -> unify t0 t1 s
+        | Some s -> unify f0 f1 s
         end
     end
 | _, _ -> None
@@ -154,8 +156,10 @@ fun t s -> match t with
     | Some t -> term_value t s
     | _ -> raise Exit
     end
-| Prod _ -> failwith "DON'T KNOW"
-| Id -> assert false
+| App (_, f, v) ->
+    let f = term_value f s in
+    let v = term_value v s in
+    f v
 
 type ('a, 'b) reify = 'a * (state -> 'b)
 
