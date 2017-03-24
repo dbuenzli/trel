@@ -111,40 +111,69 @@ let empty = Hmap.empty
 
 (* Streams *)
 
-type stream = state list
-let mplus : stream -> stream -> stream = List.append
-let rec bind : stream -> (state -> stream) -> stream =
-fun sts g -> match sts with
-| [] -> []
-| st :: sts -> mplus (g st) (bind sts g)
+type 'a stream =
+| Empty
+| Mature of 'a * 'a stream
+| Immature of 'a stream Lazy.t
+
+let rec is_empty s = match s with
+| Empty -> true
+| Mature _ -> false
+| Immature s -> is_empty (Lazy.force s)
+
+let rec head = function
+| Empty -> invalid_arg "Empty stream"
+| Mature (v, s) -> v
+| Immature s -> head (Lazy.force s)
+
+let rec next = function
+| Empty -> None
+| Mature (v, s) -> Some (v, s)
+| Immature s -> next (Lazy.force s)
+
+let all s =
+  let rec loop acc = function
+  | Empty -> List.rev acc
+  | Mature (v, s) -> loop (v :: acc) s
+  | Immature s -> loop acc (Lazy.force s)
+  in
+  loop [] s
+
+let rec smplus s0 s1 = match s0 with
+| Empty -> s1
+| Mature (v, s0) -> Mature (v, Immature (lazy (smplus s1 s0)))
+| Immature s0 -> Immature (lazy (smplus s1 (Lazy.force s0)))
+
+let rec sbind s f = match s with
+| Empty -> Empty
+| Mature (v, s) -> smplus (f v) (sbind s f)
+| Immature s -> Immature (lazy (sbind (Lazy.force s) f))
+
+let rec smap f s = match s with
+| Empty -> Empty
+| Mature (v, s) -> Mature (f v, smap f s)
+| Immature s -> Immature (lazy (smap f (Lazy.force s)))
 
 (* Goals *)
 
-type goal = state -> stream
-let fail s = []
-let succeed s = [s]
+type goal = state -> state stream
+let fail _ = Empty
+let succeed s = Mature (s, Empty)
 
 let ( = ) : 'a term -> 'a term -> goal =
 fun t0 t1 st -> match unify t0 t1 st with
-| None -> []
+| None -> Empty
 | Some st -> succeed st
 
 let fresh : ('a term -> goal) -> goal =
 fun f st -> f (Var (new_var ())) st
 
-let ( || ) : goal -> goal -> goal = fun g0 g1 st -> mplus (g0 st) (g1 st)
-let ( && ) : goal -> goal -> goal = fun g0 g1 st -> bind (g0 st) g1
+let ( || ) : goal -> goal -> goal = fun g0 g1 st -> smplus (g0 st) (g1 st)
+let ( && ) : goal -> goal -> goal = fun g0 g1 st -> sbind (g0 st) g1
 
-let success g = g empty <> []
+let rec success g = not (is_empty (g empty))
 
-(* Sequences *)
-
-type 'a seq = 'a list
-let next = function
-| [] -> None
-| a :: ls -> Some (a, ls)
-
-let all r = r
+let delay gazy st = Immature (lazy ((Lazy.force gazy) st))
 
 (* Reifying goals *)
 
@@ -171,13 +200,10 @@ let var (inj, proj) =
   let proj s = proj s (term_value var s) in
   (inj, proj)
 
-let _find (goal, proj) =
-  let ss = goal empty in
-  let add acc s = proj s :: acc in
-  List.rev (List.fold_left add [] ss)
+let _find (goal, proj) = smap proj (goal empty)
 
-let find fnd = try Ok (_find fnd) with Exit -> Error `Undefined
-let get fnd = try _find fnd with
+let find reify = try Ok (_find reify) with Exit -> Error `Undefined
+let get reify = try _find reify with
 | Exit -> invalid_arg "a result variable is undefined"
 
 (*---------------------------------------------------------------------------

@@ -39,11 +39,9 @@ let p3 p =
 let p3 = Rel.(var @@ reify p3 id)
 let () = assert (Rel.(all @@ get p3) = [ "bla", true, 5 ])
 
-(* Infinite loop, in fact stack overflow
-let rec fives x = Rel.(x = int 5 || fives x)
+let rec fives x = Rel.(x = int 5 || delay (lazy (fives x)))
 let fives = Rel.(var @@ reify fives id)
-let () = assert (Rel.(all @@ get fives) = [5])
-*)
+let () = assert (Rel.(head @@ get fives) = 5)
 
 (* These examples are from sokuza-karen
    http://okmij.org/ftp/Scheme/sokuza-kanren.scm *)
@@ -61,31 +59,70 @@ let il = intl [1;2;3]
 let ilh = lhd il
 let ilt = ltl il
 
-(* FIXME we need delay for this
+let () =
+  assert (Rel.(all @@ get (Rel.var @@ reify (fun l -> il = l) id)) = [[1;2;3]]);
+  assert (Rel.(all @@ get (Rel.var @@ reify (fun l -> ilh = l) id)) = [1]);
+  assert (Rel.(all @@ get (Rel.var @@ reify (fun l -> ilt = l) id)) = [[2;3]]);
+  ()
 
-(* Find an element equal to [x] in [l] *)
-let rec mem x l =
-  Rel.((l = lempty && fail) || (lhd l = x || mem x (ltl l)))
+let conso x xs l = Rel.(lcons x xs = l)
 
-let () = assert (Rel.success @@ mem (Rel.const 2) (intl [1;2;3]))
-let () = assert (not (Rel.success @@ mem (Rel.const 10) (intl [1;2;3])))
+let l l = Rel.(conso (Rel.int 1) (intl [2;3]) l)
+let l = Rel.(var @@ reify l id)
+let () = assert (Rel.(all @@ get l) = [[1;2;3]])
 
-let els x = mem x (intl [1;2;3])
-let els = Rel.(var @@ reify els id)
-let () = assert (Rel.(all @@ get els) = [1;2;3])
+let m4tch x xs = Rel.(conso x xs (intl [1;2;3]))
+let m4tch = Rel.(var @@ var @@ reify m4tch (fun x xs -> x, xs))
+let () = assert (Rel.(all @@ get m4tch) = [(1, [2;3])])
 
-(* Find an element equal to [x] two lists *)
-let common l1 l2 x = Rel.(mem x l1 && mem x l2)
+let rec appendo l0 l1 l =
+  (* List.append [] l = l ||
+     List.append (x :: xs) l = x :: (List.append xs l) *)
+  Rel.((l0 = lempty && l1 = l) ||
+       (fresh @@ fun x ->
+        fresh @@ fun xs ->
+        fresh @@ fun l' ->
+        conso x xs l0 &&
+        conso x l' l &&
+        delay @@ lazy (appendo xs l1 l')))
 
-let c0 = Rel.(var @@ reify (common (intl [1;2;3]) (intl [3;4;5])) id)
-let () = assert (Rel.(all @@ get c0) = [3])
+let l l = appendo (intl [1;2;3]) (intl [4;5;6]) l
+let l = Rel.(var @@ reify l id)
+let () = assert (Rel.(all @@ get l) = [[1;2;3;4;5;6]])
 
-let c1 = Rel.(var @@ reify (common (intl [1;2;3]) (intl [3;4;1;7])) id)
-let () = assert (Rel.(all @@ get c1) = [1;3])
+let l l = appendo l (intl [4;5;6]) (intl [1;2;3;4;5;6])
+let l = Rel.(var @@ reify l id)
+let () = assert (Rel.(all @@ get l) = [[1;2;3]])
 
-let c2 = Rel.(var @@ reify (common (intl [11;2;3]) (intl [13;4;1;7])) id)
-let () = assert (Rel.(all @@ get c2) = [])
-*)
+let l l = appendo (intl [1;2]) l (intl [1;2;3;4;5;6])
+let l = Rel.(var @@ reify l id)
+let () = assert (Rel.(all @@ get l) = [[3;4;5;6]])
+
+let l = appendo (intl [1]) (intl [2]) (intl [3])
+let () = assert (not (Rel.success l))
+
+let l pre =
+  Rel.(fresh @@ fun suf ->
+       appendo pre suf (intl [1;2;3;4]))
+
+let l = Rel.(var @@ reify l id)
+let () = assert (Rel.(all @@ get l) = [[]; [1]; [1;2]; [1;2;3]; [1;2;3;4]])
+
+let l suf =
+  Rel.(fresh @@ fun pre ->
+       appendo pre suf (intl [1;2;3;4]))
+
+let l = Rel.(var @@ reify l id)
+let () = assert (Rel.(all @@ get l) = [[1;2;3;4]; [2;3;4]; [3;4]; [4]; []])
+
+let l pre suf = appendo pre suf (intl [1;2;3;4])
+let l = Rel.(var @@ var @@ reify l (fun p s -> (p, s)))
+let () = assert (Rel.(all @@ get l) =
+                 [([], [1;2;3;4]);
+                  ([1], [2;3;4]);
+                  ([1;2], [3;4]);
+                  ([1;2;3], [4]);
+                  ([1;2;3;4], [])])
 
 (*---------------------------------------------------------------------------
    Copyright (c) 2017 Daniel C. Bünzli

@@ -92,19 +92,23 @@ val fresh : ('a term -> goal) -> goal
 val success : goal -> bool
 (** [success g] is [true] iff [g] succeeds on the empty state. *)
 
-(** {1 Sequences of values} *)
+val delay : goal Lazy.t -> goal
+(** [delay gazy] sees the lazy goal [gazy] as a goal. *)
 
-type 'a seq
-val next : 'c seq -> ('c * 'c seq) option
-val all : 'c seq -> 'c list
+(** {1 Streams of values} *)
+
+type 'a stream
+val next : 'c stream -> ('c * 'c stream) option
+val all : 'c stream -> 'c list
+val head : 'c stream -> 'c
 
 (** {1 Reifying goals} *)
 
 type ('a, 'b) reify
 val reify : 'a -> 'b -> ('a, 'b) reify
 val var : ('a term -> 'b, 'a -> 'c) reify -> ('b, 'c) reify
-val find : (goal, 'c) reify -> ('c seq, [`Undefined]) result
-val get : (goal, 'c) reify -> 'c seq
+val find : (goal, 'c) reify -> ('c stream, [`Undefined]) result
+val get : (goal, 'c) reify -> 'c stream
 
 (*---------------------------------------------------------------------------
    Copyright (c) 2017 Daniel C. Bünzli
