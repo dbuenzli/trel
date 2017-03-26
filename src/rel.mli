@@ -22,15 +22,8 @@
 type 'a dom
 (** The type for domains for values of type ['a]. *)
 
-val dom :
-  ?pp:(Format.formatter -> 'a -> unit) -> ?equal:('a -> 'a -> bool) -> unit ->
-  'a dom
-(** [dom ~pp ~eq] is a new domain using [equal] to test values for equality
-    (defaults to {!Pervasives.( = )}) and [pp] to print them (defaults
-    to a formatter that constantly prints ["<abstr>"]). *)
-
 (** Domains. *)
-module D : sig
+module Dom : sig
 
   (** {1:dom Domains} *)
 
@@ -40,7 +33,9 @@ module D : sig
   val v :
     ?pp:(Format.formatter -> 'a -> unit) -> ?equal:('a -> 'a -> bool) ->
     unit -> 'a dom
-  (** [v] is {!val:dom}. *)
+  (** [v ~pp ~eq] is a new domain using [equal] to test values for equality
+      (defaults to {!Pervasives.( = )}) and [pp] to print them (defaults
+      to a formatter that constantly prints ["<abstr>"]). *)
 
   (** The type for modules that can be seen as domains. *)
   module type V = sig

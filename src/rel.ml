@@ -45,7 +45,7 @@ let teq : type r s. r tid -> s tid -> (r, s) teq option =
    we are generative which is annoying. Give structure to
    tid + hash-consing ? *)
 
-module D = struct
+module Dom = struct
 
   type 'a t =
     { tid : 'a tid;
@@ -115,8 +115,7 @@ module D = struct
     v ~pp ~equal ()
 end
 
-type 'a dom = 'a D.t
-let dom = D.v
+type 'a dom = 'a Dom.t
 
 (* Terms
 
@@ -144,11 +143,11 @@ fun t0 t1 -> match t0, t1 with
 (* Constants *)
 
 let const dom v = Ret (dom, Pure v)
-let unit = const D.unit ()
-let bool = const D.bool
-let int = const D.int
-let float = const D.float
-let string = const D.string
+let unit = const Dom.unit ()
+let bool = const Dom.bool
+let int = const Dom.int
+let float = const Dom.float
+let string = const Dom.string
 
 (* Functions *)
 
@@ -201,14 +200,14 @@ fun t0 t1 s -> match walk t0 s, walk t1 s with
 | Var v, t | t, Var v -> Some (Subst.add v t s)
 | Pure _, Pure _ -> Some s (* must unify by semantics *)
 | Ret (d0, app0), Ret (d1, app1) ->
-    if not (d0.D.tid == d1.D.tid) then None else
+    if not (d0.Dom.tid == d1.Dom.tid) then None else
     begin match app0, app1 with
-    | Pure v0, Pure v1 -> if d0.D.equal v0 v1 then Some s else None
+    | Pure v0, Pure v1 -> if d0.Dom.equal v0 v1 then Some s else None
     | App _, App _ -> unify app0 app1 s
     | _, _ -> None
     end
 | App (f0, d0, v0), App (f1, d1, v1) ->
-    begin match teq d0.D.tid d1.D.tid with
+    begin match teq d0.Dom.tid d1.Dom.tid with
     | None -> None
     | Some Teq ->
         begin match unify v0 v1 s with

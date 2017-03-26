@@ -22,7 +22,7 @@ let ab_prj a b = (a, b)
 let ab = Rel.(var @@ var @@ reify ab_inj ab_prj)
 let () = assert (Rel.(all @@ get ab) = [(7, 5); (7, 6)])
 
-let p2 = Rel.(pair D.int D.bool D.(pair int bool))
+let p2 = Rel.(pair Dom.int Dom.bool Dom.(pair int bool))
 let p2 p =
   Rel.(fresh @@ fun x ->
        fresh @@ fun y ->
@@ -32,8 +32,8 @@ let () = assert (Rel.(all @@ get p2) = [5, true])
 
 let triple x y z = (x, y, z)
 let p3 x y z = Rel.(pure triple |>
-                    app D.int x |> app D.bool y |> app D.string z |>
-                    ret (dom ()))
+                    app Dom.int x |> app Dom.bool y |> app Dom.string z |>
+                    ret (Dom.v ()))
 let p3 p =
   Rel.(fresh @@ fun x ->
        fresh @@ fun y ->
@@ -61,7 +61,8 @@ let listo d dl =
   empty, cons, hd, tl, list, conso
 
 
-let iempty, icons, ihd, itl, ilist, iconso = listo Rel.D.int Rel.D.(list int)
+let iempty, icons, ihd, itl, ilist, iconso =
+  listo Rel.Dom.int Rel.Dom.(list int)
 
 let il = ilist [1;2;3]
 let ilh = ihd il
