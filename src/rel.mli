@@ -17,18 +17,28 @@
 
     {e %%VERSION%% — {{:%%PKG_HOMEPAGE%% }homepage}} *)
 
+(** {1 Domains} *)
+
+type 'a dom
+(** The type for domains for values of type ['a]. *)
+
+val dom :
+  ?pp:(Format.formatter -> 'a -> unit) -> ?eq:('a -> 'a -> bool) -> unit ->
+  'a dom
+(** [dom ~pp ~eq] is a new domain using [eq] to test values for equality
+    (defaults to {!Pervasives.( = )}) and [pp] to print them (defaults
+    to a formatter that prints the constant strings ["<abstr>"]). *)
+
 (** {1 Terms} *)
 
 type 'a term
 (** The type for terms denoting values of type ['a]. *)
 
-val const : ?eq:('a -> 'a -> bool) -> 'a -> 'a term
-(** [const ~eq v] is a term for the constant [v]. During unification
-    the constant is tested for equality with [eq] (defaults to
-    {!Pervasives.( = )}).
+val const : 'a dom -> 'a -> 'a term
+(** [const dom v] is a term for the constant [v] in domain [dom].
 
-    {b Note.} Two constants with physically different [eq] function
-    never unify. *)
+    {b Note.} Two constants with physically different [dom]s never
+    unify. *)
 
 val unit : unit term
 (** [unit] is [const ()]. *)

@@ -39,12 +39,52 @@ let teq : type r s. r tid -> s tid -> (r, s) teq option =
     | S.Tid -> Some Teq
     | _ -> None
 
+(* Domains *)
+
+type 'a dom =
+  { tid : 'a tid;
+    eq : 'a -> 'a -> bool;
+    pp : Format.formatter -> 'a -> unit }
+
+let pp_abstr ppf _ = Format.fprintf ppf "<abstr>"
+
+let dom ?(pp = pp_abstr) ?(eq = ( = )) () =
+  let tid = tid () in
+  { tid; eq; pp }
+
+let pdom ?pp () = dom ?pp ~eq:( == ) ()
+
+let dunit =
+  let eq = (( = ) : unit -> unit -> bool) in
+  let pp ppf v = Format.fprintf ppf "()" in
+  dom ~pp ~eq ()
+
+let dbool =
+  let eq = (( = ) : bool -> bool -> bool) in
+  let pp = Format.pp_print_bool in
+  dom ~pp ~eq ()
+
+let dint =
+  let eq = (( = ) : int -> int -> bool) in
+  let pp = Format.pp_print_int in
+  dom ~pp ~eq ()
+
+let dfloat =
+  let eq = (( = ) : float -> float -> bool) in
+  let pp = Format.pp_print_float in
+  dom ~pp ~eq ()
+
+let dstring =
+  let eq = (( = ) : string -> string -> bool) in
+  let pp = Format.pp_print_string in
+  dom ~pp ~eq ()
+
 (* Terms *)
 
 type 'a var = 'a term Hmap.key
 and 'a term =
 | Var : 'a var -> 'a term
-| Const : ('a -> 'a -> bool) * 'a -> 'a term
+| Const : 'a dom * 'a -> 'a term
 | App : 'a tid * ('a -> 'b) term * 'a term -> 'b term
 
 let new_var : unit -> 'a var = fun () -> Hmap.Key.create ()
@@ -55,12 +95,12 @@ fun t0 t1 -> match t0, t1 with
 
 (* Constants *)
 
-let const ?(eq = ( = )) v = Const (eq, v)
-let constp v = const ~eq:(( == )) v
-let unit = const ~eq:(( = ) : unit -> unit -> bool) ()
-let bool = const ~eq:(( = ) : bool -> bool -> bool)
-let int = const ~eq:(( = ) : int -> int -> bool)
-let string = const ~eq:(( = ) : string -> string -> bool)
+let const dom v = Const (dom, v)
+let constp v = const (pdom ()) v
+let unit = const dunit ()
+let bool = const dbool
+let int = const dint
+let string = const dstring
 
 let pair () x y =
   let pair x y = (x, y) in
@@ -90,9 +130,9 @@ let rec unify : type a. a term -> a term -> subst -> subst option =
 fun t0 t1 s -> match walk t0 s, walk t1 s with
 | (Var _ as v0), (Var _ as v1) when eq_var v0 v1 -> Some s
 | (Var v), t | t, (Var v) -> Some (Hmap.add v t s)
-| Const (eq0, v0), Const (eq1, v1) ->
-    if not (eq0 == eq1) then assert false else
-    if eq0 v0 v1 then Some s else None
+| Const (d0, v0), Const (d1, v1) ->
+(*    if not (d0 == d1) then None else *)
+    if d0.eq v0 v1 then Some s else None
 | App (tid0, f0, v0), App (tid1, f1, v1) ->
     begin match teq tid0 tid1 with
     | None -> None

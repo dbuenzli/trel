@@ -46,7 +46,9 @@ let () = assert (Rel.(head @@ get fives) = 5)
 (* These examples are from sokuza-karen
    http://okmij.org/ftp/Scheme/sokuza-kanren.scm *)
 
-let lempty = Rel.const []
+let dlist = Rel.dom ()
+
+let lempty = Rel.const dlist []
 let lcons = Rel.(func @@ arg @@ arg @@ constf (fun xs x -> x :: xs))
 let lhd = Rel.(func @@ arg @@ constf List.hd)
 let ltl = Rel.(func @@ arg @@ constf List.tl)
