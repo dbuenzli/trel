@@ -23,57 +23,127 @@ type 'a dom
 (** The type for domains for values of type ['a]. *)
 
 val dom :
-  ?pp:(Format.formatter -> 'a -> unit) -> ?eq:('a -> 'a -> bool) -> unit ->
+  ?pp:(Format.formatter -> 'a -> unit) -> ?equal:('a -> 'a -> bool) -> unit ->
   'a dom
-(** [dom ~pp ~eq] is a new domain using [eq] to test values for equality
+(** [dom ~pp ~eq] is a new domain using [equal] to test values for equality
     (defaults to {!Pervasives.( = )}) and [pp] to print them (defaults
-    to a formatter that prints the constant strings ["<abstr>"]). *)
+    to a formatter that constantly prints ["<abstr>"]). *)
+
+(** Domains. *)
+module D : sig
+
+  (** {1:dom Domains} *)
+
+  type 'a t = 'a dom
+  (** The type for domains, see {!type:dom}. *)
+
+  val v :
+    ?pp:(Format.formatter -> 'a -> unit) -> ?equal:('a -> 'a -> bool) ->
+    unit -> 'a dom
+  (** [v] is {!val:dom}. *)
+
+  (** The type for modules that can be seen as domains. *)
+  module type V = sig
+    type t
+    (** The type of the values of the domain. *)
+
+    val equal : t -> t -> bool
+    (** [equal v v'] is [true] iff [v] and [v'] are equal. *)
+
+    val pp : Format.formatter -> t -> unit
+    (** [pp ppf v] prints an unspecified representation of [v]
+        on [ppf]. *)
+  end
+
+  val of_type : (module V with type t = 'a) -> 'a t
+  (** [of_type m] is a domain from the module [m]. *)
+
+  val with_pp : (Format.formatter -> 'a -> unit) -> 'a dom -> 'a dom
+  (** [with_pp pp d] is domain [d] with pretty-printer [pp]. The
+      resulting domain is {!equal} to [d]. *)
+
+  val equal : 'a dom -> 'b dom -> bool
+  (** [equal d0 d1] is [true] iff [d0] and [d1] are the same domain. *)
+
+  (** {1:base Base type domains} *)
+
+  val unit : unit dom
+  (** [unit] is a domain for the [()] value. *)
+
+  val bool : bool dom
+  (** [bool] is a domain for [bool] values. *)
+
+  val int : int dom
+  (** [int] is a domain for [int] values. *)
+
+  val float : float dom
+  (** [float] is a domain for [float] values. *)
+
+  val string : string dom
+  (** [string] is a domain for [string] values. *)
+
+  (** {1:poly Domains for polymorphic types} *)
+
+  val pair : 'a dom -> 'b dom -> ('a * 'b) dom
+  (** [pair fst snd] is a domain for pairs with first projection [fst]
+      and second projection [snd]. *)
+
+  val list : 'a dom -> 'a list dom
+  (** [list el] is a domain for lists of type ['a]. *)
+end
 
 (** {1 Terms} *)
 
 type 'a term
 (** The type for terms denoting values of type ['a]. *)
 
+(** {2 Constants} *)
+
 val const : 'a dom -> 'a -> 'a term
 (** [const dom v] is a term for the constant [v] in domain [dom].
 
-    {b Note.} Two constants with physically different [dom]s never
-    unify. *)
+    Two constants of the same type with {{!D.equal}non equal} domains
+    never unify. *)
 
 val unit : unit term
-(** [unit] is [const ()]. *)
+(** [unit] is [const D.unit ()]. *)
 
 val bool : bool -> bool term
-(** [bool b] is [const b]. *)
+(** [bool b] is [const D.bool b]. *)
 
 val int : int -> int term
-(** [int i] is [const i] *)
+(** [int i] is [const D.int i] *)
+
+val float : float -> float term
+(** [float f] is [const D.float f]. *)
 
 val string : string -> string term
-(** [string s] is [const s]. *)
+(** [string s] is [const D.string s]. *)
 
-val pair : unit -> 'a term -> 'b term -> ('a * 'b) term
-(** [pair ()] is a pair for two types of terms. *)
+(** {2:fapp Function applications}
 
-(** {2:func Functions} *)
+    Two function applications (constructor) {{!ret}returning} values in the
+    same domain unify if each of their argument unify. *)
 
-type ('a, 'b) func
-(** The type for lifting functions into the term language. ['b] is
-    eventually a function from terms to terms whose application
-    denotes application of the corresponding function. *)
+type 'a app
+(** The type for function applications returning values of type ['a]. *)
 
-val constf : 'a -> ('a term -> 'b, 'b) func
-(** [constf f] is the function [f] as a term. *)
+val pure : 'a -> 'a app
+(** [pure f] is the application that yields [f]. *)
 
-val arg :
-  (('a -> 'b) term -> 'c, 'd) func -> (('b term -> 'c), 'a term -> 'd) func
-(** [arg fc] constructs the function from terms to terms of the underyling
-    lifted function, argument by argument. *)
+val app : 'a dom -> 'a term -> ('a -> 'b) app -> 'b app
+(** [app d t app] is the application of term [t] interpreted in domain [d]
+    to the function of [app]. *)
 
-val func : ('a -> 'a, 'b) func -> 'b
-(** [func fc] is the function from terms to terms to lift the underlying
-    function to the term language. This can be used to unify application
-    of this function. *)
+val ret : 'b dom -> 'b app -> 'b term
+(** [ret d app] is a term that interprets the application [app] in
+    domain [d] and returns a term representing the function *)
+
+(** {2:ptypes Polymorphic types} *)
+
+val pair :
+  'a dom -> 'b dom -> ('a * 'b) dom -> 'a term -> 'b term ->  ('a * 'b) term
+(** [pair dom fst snd] is a pair for [fst] and [snd] in [dom]. *)
 
 (** {1 Goals} *)
 

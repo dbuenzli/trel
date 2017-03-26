@@ -39,53 +39,100 @@ let teq : type r s. r tid -> s tid -> (r, s) teq option =
     | S.Tid -> Some Teq
     | _ -> None
 
-(* Domains *)
+(* Domains
 
-type 'a dom =
-  { tid : 'a tid;
-    eq : 'a -> 'a -> bool;
-    pp : Format.formatter -> 'a -> unit }
+   FIXME try to be more clever about domains for structural types,
+   we are generative which is annoying. Give structure to
+   tid + hash-consing ? *)
 
-let pp_abstr ppf _ = Format.fprintf ppf "<abstr>"
+module D = struct
 
-let dom ?(pp = pp_abstr) ?(eq = ( = )) () =
-  let tid = tid () in
-  { tid; eq; pp }
+  type 'a t =
+    { tid : 'a tid;
+      equal : 'a -> 'a -> bool;
+      pp : Format.formatter -> 'a -> unit }
 
-let pdom ?pp () = dom ?pp ~eq:( == ) ()
+  let pp_abstr ppf _ = Format.fprintf ppf "<abstr>"
 
-let dunit =
-  let eq = (( = ) : unit -> unit -> bool) in
-  let pp ppf v = Format.fprintf ppf "()" in
-  dom ~pp ~eq ()
+  let v ?(pp = pp_abstr) ?(equal = ( = )) () =
+    let tid = tid () in
+    { tid; equal; pp }
 
-let dbool =
-  let eq = (( = ) : bool -> bool -> bool) in
-  let pp = Format.pp_print_bool in
-  dom ~pp ~eq ()
+  module type V = sig
+    type t
+    val equal : t -> t -> bool
+    val pp : Format.formatter -> t -> unit
+  end
 
-let dint =
-  let eq = (( = ) : int -> int -> bool) in
-  let pp = Format.pp_print_int in
-  dom ~pp ~eq ()
+  let of_type : type a. (module V with type t = a) -> a t =
+  fun (module V) -> v ~pp:V.pp ~equal:V.equal ()
 
-let dfloat =
-  let eq = (( = ) : float -> float -> bool) in
-  let pp = Format.pp_print_float in
-  dom ~pp ~eq ()
+  let with_pp pp d = { d with pp }
 
-let dstring =
-  let eq = (( = ) : string -> string -> bool) in
-  let pp = Format.pp_print_string in
-  dom ~pp ~eq ()
+  let equal : type a b. a t -> b t -> bool =
+  fun d0 d1 -> match teq d0.tid d1.tid with
+  | None -> false
+  | Some Teq -> true
 
-(* Terms *)
+  let unit =
+    let equal = (( = ) : unit -> unit -> bool) in
+    let pp ppf v = Format.fprintf ppf "()" in
+    v ~pp ~equal ()
+
+  let bool =
+    let equal = (( = ) : bool -> bool -> bool) in
+    let pp = Format.pp_print_bool in
+    v ~pp ~equal ()
+
+  let int =
+    let equal = (( = ) : int -> int -> bool) in
+    let pp = Format.pp_print_int in
+    v ~pp ~equal ()
+
+  let float =
+    let equal = (( = ) : float -> float -> bool) in
+    let pp = Format.pp_print_float in
+    v ~pp ~equal ()
+
+  let string =
+    let equal = (( = ) : string -> string -> bool) in
+    let pp = Format.pp_print_string in
+    v ~pp ~equal ()
+
+  let pair f s =
+    let equal (f0, s0) (f1, s1) = f.equal f0 f1 && s.equal s0 s1 in
+    let pp ppf (fv, sv) =
+      Format.fprintf ppf "@[<1>(%a,@, %a)@]" f.pp fv s.pp sv
+    in
+    v ~pp ~equal ()
+
+  let list e =
+    let equal l0 l1 = List.for_all2 e.equal l0 l1 in
+    let pp ppf l =
+      let pp_sep ppf () = Format.fprintf ppf ";@ " in
+      Format.fprintf ppf "@[<1>[%a]@]" (Format.pp_print_list ~pp_sep e.pp) l
+    in
+    v ~pp ~equal ()
+end
+
+type 'a dom = 'a D.t
+let dom = D.v
+
+(* Terms
+
+   N.B. We type function applications rather than pure values and
+   variables. This allows to keep variables untyped which seems to
+   lead to a more lightweight edsl. *)
 
 type 'a var = 'a term Hmap.key
+and 'a tapp = 'a
 and 'a term =
 | Var : 'a var -> 'a term
-| Const : 'a dom * 'a -> 'a term
-| App : 'a tid * ('a -> 'b) term * 'a term -> 'b term
+| Pure : 'a -> 'a tapp term
+| App : ('a -> 'b) tapp term * 'a dom * 'a term -> 'b tapp term
+| Ret : 'a dom * 'a tapp term -> 'a term
+
+(* Variables *)
 
 let new_var : unit -> 'a var = fun () -> Hmap.Key.create ()
 let eq_var : 'a 'b. 'a term -> 'b term -> bool =
@@ -95,27 +142,24 @@ fun t0 t1 -> match t0, t1 with
 
 (* Constants *)
 
-let const dom v = Const (dom, v)
-let constp v = const (pdom ()) v
-let unit = const dunit ()
-let bool = const dbool
-let int = const dint
-let string = const dstring
+let const dom v = Ret (dom, Pure v)
+let unit = const D.unit ()
+let bool = const D.bool
+let int = const D.int
+let float = const D.float
+let string = const D.string
 
-let pair () x y =
-  let pair x y = (x, y) in
-  let tid0 = tid () in
-  let tid1 = tid () in
-  App (tid1, App (tid0, (constp pair), x), y)
+(* Functions *)
 
-type ('a, 'b) func = 'a -> 'b
+type 'a app = 'a tapp term
 
-let constf f k = k (constp f)
-let arg step =
-  let tid = tid () in
-  (fun k x -> step (fun f -> k (App (tid, f, x))))
+let pure f = Pure f
+let app dom v app = App (app, dom, v)
+let ret dom app = Ret (dom, app)
 
-let func step = step (fun x -> x)
+let pair fst snd = (fst, snd)
+let pair fdom sdom tdom =
+  fun fst snd -> pure pair |> app fdom fst |> app sdom snd |> ret tdom
 
 (* Unification *)
 
@@ -129,12 +173,17 @@ fun t s -> match t with
 let rec unify : type a. a term -> a term -> subst -> subst option =
 fun t0 t1 s -> match walk t0 s, walk t1 s with
 | (Var _ as v0), (Var _ as v1) when eq_var v0 v1 -> Some s
-| (Var v), t | t, (Var v) -> Some (Hmap.add v t s)
-| Const (d0, v0), Const (d1, v1) ->
-(*    if not (d0 == d1) then None else *)
-    if d0.eq v0 v1 then Some s else None
-| App (tid0, f0, v0), App (tid1, f1, v1) ->
-    begin match teq tid0 tid1 with
+| Var v, t | t, Var v -> Some (Hmap.add v t s)
+| Pure _, Pure _ -> Some s (* must unify by semantics *)
+| Ret (d0, app0), Ret (d1, app1) ->
+    if not (d0.D.tid == d1.D.tid) then None else
+    begin match app0, app1 with
+    | Pure v0, Pure v1 -> if d0.D.equal v0 v1 then Some s else None
+    | App _, App _ -> unify app0 app1 s
+    | _, _ -> None
+    end
+| App (f0, d0, v0), App (f1, d1, v1) ->
+    begin match teq d0.D.tid d1.D.tid with
     | None -> None
     | Some Teq ->
         begin match unify v0 v1 s with
@@ -219,13 +268,14 @@ let delay gazy st = Immature (lazy ((Lazy.force gazy) st))
 
 let rec term_value : type a. a term -> subst -> a =
 fun t s -> match t with
-| Const (_, v) -> v
 | Var v ->
     begin match Hmap.find v s with
     | Some t -> term_value t s
     | _ -> raise Exit
     end
-| App (_, f, v) ->
+| Pure v -> v
+| Ret (_, t) -> term_value t s
+| App (f, _, v) ->
     let f = term_value f s in
     let v = term_value v s in
     f v
