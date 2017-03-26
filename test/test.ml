@@ -130,6 +130,8 @@ let () = assert (Rel.(all @@ get l) =
                   ([1;2;3], [4]);
                   ([1;2;3;4], [])])
 
+let () = print_endline "All tests succeeded!"
+
 (*---------------------------------------------------------------------------
    Copyright (c) 2017 Daniel C. Bünzli
 
