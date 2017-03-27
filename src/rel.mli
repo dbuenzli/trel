@@ -246,7 +246,7 @@ module Value : sig
   (** See {!value}. *)
 
   val name : 'a value -> string
-  (** [name v] is [v]'s name. See {!var}. *)
+  (** [name v] is [v]'s name. See {!query}. *)
 
   val find : 'a value -> 'a option
   (** [find v] is [v]'s value, if any. *)
@@ -260,8 +260,8 @@ module Value : sig
 
   val pp : Format.formatter -> 'a value -> unit
   (** [pp ppf v] prints, if it exists, [v]'s value using the value's domain
-      {{!Dom.pp_value}pretty-printer}. Otherwise it prints [v]'s {{!defining
-      term}term}. *)
+      {{!Dom.pp_value}pretty-printer}. Otherwise it prints [v]'s {{!term}
+      defining term}. *)
 end
 
 type ('q, 'r) reifier
@@ -276,6 +276,45 @@ val query :
 (** [query ~name r] introduces a logical query variable in [r]'s query and
     binds its value in the state reyifing function. [name] can be
     used to name the value. *)
+
+(** Multiple query introduction. *)
+module Query : sig
+
+  (** {1 Query} *)
+
+  val v1 :
+    ?n0:string -> ('a term -> 'q, 'a value -> 'r) reifier -> ('q, 'r) reifier
+
+  val v2 :
+    ?n0:string -> ?n1:string ->
+    ('a term -> 'b term -> 'q,
+     'a value -> 'b value -> 'r) reifier -> ('q, 'r) reifier
+
+  val v3 :
+    ?n0:string -> ?n1:string -> ?n2:string ->
+    ('a term -> 'b term -> 'c term -> 'q,
+     'a value -> 'b value -> 'c value -> 'r) reifier -> ('q, 'r) reifier
+
+  val v4 :
+    ?n0:string -> ?n1:string -> ?n2:string -> ?n3:string ->
+    ('a term -> 'b term -> 'c term -> 'd term -> 'q,
+     'a value -> 'b value -> 'c value -> 'd value -> 'r) reifier ->
+    ('q, 'r) reifier
+
+  val v5 :
+    ?n0:string -> ?n1:string -> ?n2:string -> ?n3:string -> ?n4:string ->
+    ('a term -> 'b term -> 'c term -> 'd term -> 'e term -> 'q,
+     'a value -> 'b value -> 'c value -> 'd value -> 'e value -> 'r) reifier ->
+    ('q, 'r) reifier
+
+  val v6 :
+    ?n0:string -> ?n1:string -> ?n2:string -> ?n3:string -> ?n4:string ->
+    ?n5:string ->
+    ('a term -> 'b term -> 'c term -> 'd term -> 'c term -> 'f term -> 'q,
+     'a value -> 'b value -> 'c value -> 'd value -> 'c value -> 'f value ->'r)
+      reifier -> ('q, 'r) reifier
+end
+
 
 val run : (goal, 'r) reifier -> 'r Seq.t
 (** [run r] is the sequence of states reified by [r]'s reifying

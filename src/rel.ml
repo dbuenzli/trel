@@ -423,13 +423,79 @@ type ('q, 'r) reifier = { next_id : int; query : 'q; reify : state -> 'r }
 let reifier query reify = { next_id = 0; query; reify = (fun _ -> reify) }
 let query ?name r =
   let var = var ?name r.next_id in
+  let next_id = r.next_id + 1 in
   let query = r.query var in
   let reify st = r.reify st (Value.v var st.subst) in
-  let next_id = r.next_id + 1 in
   { next_id; query; reify }
 
 let run r = Seq.map r.reify (r.query { empty with next_id = r.next_id })
 let rec success g = not (Seq.is_empty (g empty))
+
+module Query = struct
+  let v1 ?n0 r = query ?name:n0 r
+  let v2 ?n0 ?n1 r =
+    let v0 = var ?name:n0 (r.next_id    ) in
+    let v1 = var ?name:n1 (r.next_id + 1) in
+    let next_id = r.next_id + 2 in
+    let query = r.query v0 v1 in
+    let reify st = r.reify st (Value.v v0 st.subst) (Value.v v1 st.subst) in
+    { next_id; query; reify }
+
+  let v3 ?n0 ?n1 ?n2 r =
+    let v0 = var ?name:n0 (r.next_id    ) in
+    let v1 = var ?name:n1 (r.next_id + 1) in
+    let v2 = var ?name:n2 (r.next_id + 2) in
+    let next_id = r.next_id + 3 in
+    let query = r.query v0 v1 v2 in
+    let reify st = r.reify st
+        (Value.v v0 st.subst) (Value.v v1 st.subst) (Value.v v2 st.subst)
+    in
+    { next_id; query; reify }
+
+  let v4 ?n0 ?n1 ?n2 ?n3 r =
+    let v0 = var ?name:n0 (r.next_id    ) in
+    let v1 = var ?name:n1 (r.next_id + 1) in
+    let v2 = var ?name:n2 (r.next_id + 2) in
+    let v3 = var ?name:n3 (r.next_id + 3) in
+    let next_id = r.next_id + 4 in
+    let query = r.query v0 v1 v2 v3 in
+    let reify st = r.reify st
+        (Value.v v0 st.subst) (Value.v v1 st.subst) (Value.v v2 st.subst)
+        (Value.v v3 st.subst)
+    in
+    { next_id; query; reify }
+
+  let v5 ?n0 ?n1 ?n2 ?n3 ?n4 r =
+    let v0 = var ?name:n0 (r.next_id    ) in
+    let v1 = var ?name:n1 (r.next_id + 1) in
+    let v2 = var ?name:n2 (r.next_id + 2) in
+    let v3 = var ?name:n3 (r.next_id + 3) in
+    let v4 = var ?name:n4 (r.next_id + 4) in
+    let next_id = r.next_id + 5 in
+    let query = r.query v0 v1 v2 v3 v4 in
+    let reify st = r.reify st
+        (Value.v v0 st.subst) (Value.v v1 st.subst) (Value.v v2 st.subst)
+        (Value.v v3 st.subst) (Value.v v4 st.subst)
+    in
+    { next_id; query; reify }
+
+  let v6 ?n0 ?n1 ?n2 ?n3 ?n4 ?n5 r =
+    let v0 = var ?name:n0 (r.next_id    ) in
+    let v1 = var ?name:n1 (r.next_id + 1) in
+    let v2 = var ?name:n2 (r.next_id + 2) in
+    let v3 = var ?name:n3 (r.next_id + 3) in
+    let v4 = var ?name:n4 (r.next_id + 4) in
+    let v5 = var ?name:n5 (r.next_id + 5) in
+    let next_id = r.next_id + 6 in
+    let query = r.query v0 v1 v2 v3 v4 v5 in
+    let reify st = r.reify st
+        (Value.v v0 st.subst) (Value.v v1 st.subst) (Value.v v2 st.subst)
+        (Value.v v3 st.subst) (Value.v v4 st.subst) (Value.v v5 st.subst)
+    in
+    { next_id; query; reify }
+end
+
+
 
 (*---------------------------------------------------------------------------
    Copyright (c) 2017 Daniel C. Bünzli

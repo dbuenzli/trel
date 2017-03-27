@@ -10,7 +10,7 @@ let assert_vals ?limit q vals =
 
 let assert_2vals ?limit q vals =
   let reify x y = Rel.Value.(get x, get y) in
-  let q = Rel.(query @@ query @@ reifier q reify) in
+  let q = Rel.(Query.v2 @@ reifier q reify) in
   assert (Rel.(Seq.to_list ?limit @@ run q) = vals)
 
 let test_simple_unify () =
@@ -81,7 +81,6 @@ let listo d dl =
      appendo rt (cons x empty) r)
   in
   empty, cons, hd, tl, list, conso, heado, tailo, appendo, revo
-
 
 let iempty, icons, ihd, itl, ilist, iconso, iheado, tailo, iappendo, irevo =
   listo Rel.Dom.int Rel.Dom.(list int)
