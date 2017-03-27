@@ -4,11 +4,9 @@
    %%NAME%% %%VERSION%%
   ---------------------------------------------------------------------------*)
 
-let id x = x
-
 let assert_vals ?limit q vals =
-  let q = Rel.(var @@ reify q id) in
-  assert (Rel.(Seq.to_list ?limit @@ get q) = vals)
+  let q = Rel.(var @@ reifier q Value.get) in
+  assert (Rel.(Seq.to_list ?limit @@ run q) = vals)
 
 module Btree = struct
   type t = Node of int * t * t | Nil

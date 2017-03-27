@@ -20,7 +20,7 @@
 (** {1 Domains} *)
 
 type 'a dom
-(** The type for domains for values of type ['a]. *)
+(** The type for domains of values of type ['a]. *)
 
 (** Domains. *)
 module Dom : sig
@@ -31,11 +31,12 @@ module Dom : sig
   (** See {!type:dom}. *)
 
   val v :
-    ?pp:(Format.formatter -> 'a -> unit) -> ?equal:('a -> 'a -> bool) ->
-    unit -> 'a dom
-  (** [v ~pp ~equal] is a new domain using [equal] to test values for equality
-      and [pp] to print them. [equal] defaults to {!Pervasives.( = )} and
-      [pp] to a formatter that constantly prints ["<abstr>"]). *)
+    ?name:string -> ?pp:(Format.formatter -> 'a -> unit) ->
+    ?equal:('a -> 'a -> bool) -> unit -> 'a dom
+  (** [v ~name ~pp ~equal] is a new domain named [name] using [equal]
+      to test values for equality and [pp] to print them. [name]
+      defaults to ["unknown"], [equal] defaults to {!Pervasives.( = )}
+      and [pp] to a formatter that constantly prints ["<abstr>"]). *)
 
   (** The type for modules that can be seen as domains. *)
   module type V = sig
@@ -53,12 +54,25 @@ module Dom : sig
   val of_type : (module V with type t = 'a) -> 'a t
   (** [of_type m] is a domain from the module [m]. *)
 
-  val with_pp : (Format.formatter -> 'a -> unit) -> 'a dom -> 'a dom
-  (** [with_pp pp d] is domain [d] with pretty-printer [pp]. The
-      resulting domain is {!equal} to [d]. *)
+  val with_dom :
+    ?name:string -> ?pp:(Format.formatter -> 'a -> unit) -> 'a dom -> 'a dom
+  (** [with_dom ~name ~pp d] is domain [d] with name [name] and
+      pretty-printer [pp]. The resulting domain is {!equal} to [d]. *)
+
+  val name : 'a dom -> string
+  (** [name d] is [d]'s name. *)
+
+  val pp_value : 'a dom -> Format.formatter -> 'a -> unit
+  (** [pp_value d] is [d]'s value pretty-printer. *)
+
+  val equal_value : 'a dom -> ('a -> 'a -> bool)
+  (** [equal_value d] is [d]'s value equality function. *)
 
   val equal : 'a dom -> 'b dom -> bool
   (** [equal d0 d1] is [true] iff [d0] and [d1] are the same domain. *)
+
+  val pp : Format.formatter -> 'a dom -> unit
+  (** [pp ppf d] prints [d]'s {!name} on [ppf]. *)
 
   (** {1:base Base type domains} *)
 
@@ -92,6 +106,9 @@ end
 type 'a term
 (** The type for terms denoting values of type ['a]. *)
 
+val pp_term : Format.formatter -> 'a term -> unit
+(** [pp_term ppf t] prints an unspecified representation of [t] on [ppf]. *)
+
 (** {2 Constants} *)
 
 val const : 'a dom -> 'a -> 'a term
@@ -119,17 +136,17 @@ val string : string -> string term
     Two function applications {{!ret}returning} values in the same
     domain unify if each of their argument unify. *)
 
-type 'a app
+type 'a ret
 (** The type for function applications returning values of type ['a]. *)
 
-val pure : 'a -> 'a app
-(** [pure f] is the application that yields [f]. *)
+val pure : 'a -> 'a ret
+(** [pure f] is the application that yields [f] itself. *)
 
-val app : 'a dom -> 'a term -> ('a -> 'b) app -> 'b app
-(** [app d t app] is the application of term [t] interpreted in domain [d]
-    to the function of [app]. *)
+val app : 'a dom -> 'a term -> ('a -> 'b) ret -> 'b ret
+(** [app d t ret] is the application of term [t] interpreted in domain [d]
+    to the function returned by [ret]. *)
 
-val ret : 'b dom -> 'b app -> 'b term
+val ret : 'b dom -> 'b ret -> 'b term
 (** [ret d app] is a term that interprets the application [app] in
     domain [d] and returns a term representing the function application. *)
 
@@ -167,15 +184,12 @@ val fresh : ('a term -> goal) -> goal
 val delay : goal Lazy.t -> goal
 (** [delay gazy] sees the lazy goal [gazy] as a goal. *)
 
-(** {1 Reifying goals} *)
-
-val success : goal -> bool
-(** [success g] is [true] iff [g] succeeds on the empty state. *)
+(** {1 Reification} *)
 
 type 'a seq
 (** The type for (possibly infinite) sequences of values of type ['a]. *)
 
-(** Lazy sequences of values. *)
+(** Sequences of values. *)
 module Seq : sig
 
   (** {1 Sequences} *)
@@ -206,11 +220,55 @@ module Seq : sig
       If [limit] is unspecified it is unbounded. *)
 end
 
-type ('a, 'b) reify
-val reify : 'a -> 'b -> ('a, 'b) reify
-val var : ('a term -> 'b, 'a -> 'c) reify -> ('b, 'c) reify
-val find : (goal, 'c) reify -> ('c Seq.t, [`Undefined]) result
-val get : (goal, 'c) reify -> 'c Seq.t
+type 'a value
+(** The type for representing the value of a variable of type ['a] in
+    a given state. *)
+
+(** Variable values. *)
+module Value : sig
+
+  type 'a t = 'a value
+  (** See {!value}. *)
+
+  val name : 'a value -> string
+  (** [name v] is [v]'s name. See {!var}. *)
+
+  val find : 'a value -> 'a option
+  (** [find v] is [v]'s value, if any. *)
+
+  val get : 'a value -> 'a
+  (** [get v] is like {!find} but @raise Invalid_argument if [v] is
+      undefined. *)
+
+  val term : 'a value -> 'a term
+  (** [term v] is [v]'s defining term. *)
+
+  val pp : Format.formatter -> 'a value -> unit
+  (** [pp ppf v] prints, if it exists, [v]'s value using the value's domain
+      {{!Dom.pp_value}pretty-printer}. Otherwise it prints [v]'s {{!defining
+      term}term}. *)
+end
+
+type ('q, 'r) reifier
+(** The type for reifiers. The type ['q] is the query to reify,
+    the type ['r] is the state reifying function applied on each state. *)
+
+val reifier : 'q -> 'r -> ('q, 'r) reifier
+(** [reifier q f] reifies the query [q] with reifying function [f]. *)
+
+val var :
+  ?name:string -> ('a term -> 'q, 'a value -> 'r) reifier -> ('q, 'r) reifier
+(** [var ~name r] introduces a logical query variable in [r]'s query and
+    binds its value in the state reyifing function. [name] can be
+    used to name the value. *)
+
+val run : (goal, 'r) reifier -> 'r Seq.t
+(** [run r] is the sequence of states reified by [r]'s reifying
+    function and obtained by running [r]'s query on the empty
+    state. *)
+
+val success : goal -> bool
+(** [success g] is [true] iff [g] succeeds on the empty state. *)
 
 (*---------------------------------------------------------------------------
    Copyright (c) 2017 Daniel C. Bünzli

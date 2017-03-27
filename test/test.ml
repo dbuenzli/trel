@@ -4,20 +4,20 @@
    %%NAME%% %%VERSION%%
   ---------------------------------------------------------------------------*)
 
-let id x = x
-
 let assert_vals ?limit q vals =
-  let q = Rel.(var @@ reify q id) in
-  assert (Rel.(Seq.to_list ?limit @@ get q) = vals)
+  let q = Rel.(var @@ reifier q Value.get) in
+  assert (Rel.(Seq.to_list ?limit @@ run q) = vals)
+
+let assert_2vals ?limit q vals =
+  let reify x y = Rel.Value.(get x, get y) in
+  let q = Rel.(var @@ var @@ reifier q reify) in
+  assert (Rel.(Seq.to_list ?limit @@ run q) = vals)
 
 let test_simple_unify () =
-  let q q = Rel.(q = int 5) in
-  assert_vals q [5];
-  ()
-
-let test_disj () =
-  let q q = Rel.(q = int 5 || q = int 6) in
-  assert_vals q [5;6];
+  assert_vals (fun q -> Rel.(q = int 5)) [5];
+  assert_vals (fun q -> Rel.(q = int 5 || q = int 6)) [5;6];
+  assert_2vals
+    (fun a b -> Rel.(a = int 7 && (b = int 5 || b = int 6))) [(7, 5); (7, 6)];
   ()
 
 let test_conj () =
@@ -28,13 +28,6 @@ let test_conj () =
     x = y && y = z && z = int 3
   in
   assert_vals x [3];
-  ()
-
-let test_query () =
-  let ab a b = Rel.(a = int 7 && (b = int 5 || b = int 6)) in
-  let ab_prj a b = (a, b) in
-  let ab = Rel.(var @@ var @@ reify ab ab_prj) in
-  assert (Rel.(Seq.to_list @@ get ab) = [(7, 5); (7, 6)]);
   ()
 
 let test_pair () =
@@ -95,8 +88,8 @@ let listo d dl =
     (l = empty && r = empty) ||
     (fresh @@ fun x -> fresh @@ fun xs -> fresh @@ fun rt ->
      (cons x xs) = l &&
-     appendo rt (cons x empty) r &&
-     delay @@ lazy (revo xs rt))
+     delay @@ lazy (revo xs rt) &&
+     appendo rt (cons x empty) r)
   in
   empty, cons, hd, tl, list, conso, heado, tailo, appendo, revo
 
@@ -112,23 +105,14 @@ let test_ilist () =
   assert_vals Rel.(fun l -> ilh = l) [1];
   assert_vals Rel.(fun l -> ilt = l) [[2;3]];
   assert_vals (Rel.(fun l -> iconso (Rel.int 1) (ilist [2;3]) l)) [[1;2;3]];
-  ()
-
-let test_ilist_match () =
-  let m4tch x xs = Rel.(iconso x xs (ilist [1;2;3])) in
-  let m4tch = Rel.(var @@ var @@ reify m4tch (fun x xs -> x, xs)) in
-  assert (Rel.(Seq.to_list @@ get m4tch) = [(1, [2;3])]);
+  assert_2vals (fun x xs -> Rel.(iconso x xs (ilist [1;2;3]))) [(1,[2;3])];
   ()
 
 let test_ilist_appendo () =
-  assert_vals
-    (fun l -> iappendo (ilist [1;2;3]) (ilist [4;5;6]) l) [[1;2;3;4;5;6]];
-  assert_vals
-    (fun l -> iappendo l (ilist [4;5;6]) (ilist [1;2;3;4;5;6])) [[1;2;3]];
-  assert_vals
-    (fun l -> iappendo (ilist [1;2]) l (ilist [1;2;3;4;5;6])) [[3;4;5;6]];
-  assert
-    (not (Rel.success (iappendo (ilist [1]) (ilist [2]) (ilist [3]))));
+  assert_vals (fun l -> iappendo (ilist [1;2]) (ilist [3;4]) l) [[1;2;3;4]];
+  assert_vals (fun l -> iappendo l (ilist [4]) (ilist [1;2;3;4])) [[1;2;3]];
+  assert_vals (fun l -> iappendo (ilist [1;2]) l (ilist [1;2;3;4])) [[3;4]];
+  assert (not (Rel.success (iappendo (ilist [1]) (ilist [2]) (ilist [3]))));
   ()
 
 let test_ilist_pre_suf () =
@@ -138,10 +122,11 @@ let test_ilist_pre_suf () =
   let l = ilist [1;2;3;4] in
   assert_vals (pre l) [[]; [1]; [1;2]; [1;2;3]; [1;2;3;4]];
   assert_vals (suf l) [[1;2;3;4]; [2;3;4]; [3;4]; [4]; []];
+  let pre_suf = pre_suf l in
   let pre_suf = Rel.(var @@ var @@
-               reify (fun p s -> pre_suf l p s) (fun p s -> (p, s)))
+                     reifier pre_suf (fun p s -> Rel.Value.(get p, get s)))
   in
-  assert (Rel.(Seq.to_list @@ get pre_suf) =
+  assert (Rel.(Seq.to_list @@ run pre_suf) =
           [([], [1;2;3;4]);
            ([1], [2;3;4]);
            ([1;2], [3;4]);
@@ -150,18 +135,15 @@ let test_ilist_pre_suf () =
   ()
 
 let test_ilist_revo () =
-  assert_vals ~limit:1 (fun r -> irevo (ilist [1;2;3]) r) [[3;2;1]];
+  assert_vals (fun r -> irevo (ilist [1;2;3]) r) [[3;2;1]];
   ()
 
 let test () =
   test_simple_unify ();
-  test_disj ();
   test_conj ();
-  test_query ();
   test_pair ();
   test_fapp ();
   test_delay ();
-  test_ilist_match ();
   test_ilist_appendo ();
   test_ilist_pre_suf ();
   test_ilist_revo ();

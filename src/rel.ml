@@ -4,19 +4,11 @@
    %%NAME%% %%VERSION%%
   ---------------------------------------------------------------------------*)
 
-(* Straightforward typed implementation of μKanren. See:
-
-   Jason Hemann and Daniel P. Friedman.
-   microKanren: A Minimal Functional Core for Relational Programming.
-   In Proceedings of the 2013 Workshop on Scheme and Functional Programming
-   (Scheme '13), Alexandria, VA, 2013. *)
+let strf = Format.asprintf
 
 (* Lazy sequences of values. *)
 
-let strf = Printf.sprintf
-
 module Seq = struct
-
   type 'a t =
   | Empty
   | Cons of 'a * 'a t
@@ -52,14 +44,15 @@ module Seq = struct
     | Some l -> l
     | None -> -1
     in
-    let rec loop limit acc s =
-      if limit = 0 then List.rev acc else
-      match s with
-      | Empty -> List.rev acc
-      | Delay s -> loop limit acc (Lazy.force s)
-      | Cons (v, s) ->
-          let limit = if limit = -1 then limit else limit - 1 in
-          loop limit (v :: acc) s
+    let rec loop limit acc s = match limit = 0 with
+    | true -> List.rev acc
+    | false ->
+        match s with
+        | Empty -> List.rev acc
+        | Delay s -> loop limit acc (Lazy.force s)
+        | Cons (v, s) ->
+            let limit = if limit = -1 then limit else limit - 1 in
+            loop limit (v :: acc) s
     in
     loop limit [] s
 
@@ -118,15 +111,16 @@ let teq : type r s. r tid -> s tid -> (r, s) teq option =
 module Dom = struct
 
   type 'a t =
-    { tid : 'a tid;
+    { name : string;
+      tid : 'a tid;
       equal : 'a -> 'a -> bool;
       pp : Format.formatter -> 'a -> unit }
 
   let pp_abstr ppf _ = Format.fprintf ppf "<abstr>"
 
-  let v ?(pp = pp_abstr) ?(equal = ( = )) () =
+  let v ?(name = "unknown") ?(pp = pp_abstr) ?(equal = ( = )) () =
     let tid = tid () in
-    { tid; equal; pp }
+    { name; tid; equal; pp }
 
   module type V = sig
     type t
@@ -137,44 +131,56 @@ module Dom = struct
   let of_type : type a. (module V with type t = a) -> a t =
   fun (module V) -> v ~pp:V.pp ~equal:V.equal ()
 
-  let with_pp pp d = { d with pp }
+  let with_dom ?name ?pp d =
+    let name = match name with None -> d.name | Some n -> n in
+    let pp = match pp with None -> d.pp | Some pp -> pp in
+    { d with name; pp }
+
+  let name d = d.name
+  let pp_value d = d.pp
+  let equal_value d = d.equal
 
   let equal : type a b. a t -> b t -> bool =
   fun d0 d1 -> match teq d0.tid d1.tid with
   | None -> false
   | Some Teq -> true
 
+  let pp ppf d = Format.pp_print_string ppf d.name
+
+  (* Predefined domains *)
+
   let unit =
     let equal = (( = ) : unit -> unit -> bool) in
     let pp ppf v = Format.fprintf ppf "()" in
-    v ~pp ~equal ()
+    v ~name:"unit" ~pp ~equal ()
 
   let bool =
     let equal = (( = ) : bool -> bool -> bool) in
     let pp = Format.pp_print_bool in
-    v ~pp ~equal ()
+    v ~name:"bool" ~pp ~equal ()
 
   let int =
     let equal = (( = ) : int -> int -> bool) in
     let pp = Format.pp_print_int in
-    v ~pp ~equal ()
+    v ~name:"int" ~pp ~equal ()
 
   let float =
     let equal = (( = ) : float -> float -> bool) in
     let pp = Format.pp_print_float in
-    v ~pp ~equal ()
+    v ~name:"float" ~pp ~equal ()
 
   let string =
     let equal = (( = ) : string -> string -> bool) in
     let pp = Format.pp_print_string in
-    v ~pp ~equal ()
+    v ~name:"string" ~pp ~equal ()
 
   let pair f s =
     let equal (f0, s0) (f1, s1) = f.equal f0 f1 && s.equal s0 s1 in
     let pp ppf (fv, sv) =
       Format.fprintf ppf "@[<1>(%a,@, %a)@]" f.pp fv s.pp sv
     in
-    v ~pp ~equal ()
+    let name = strf "%s * %s" f.name s.name in
+    v ~name ~pp ~equal ()
 
   let list e =
     let equal l0 l1 = List.for_all2 e.equal l0 l1 in
@@ -182,10 +188,23 @@ module Dom = struct
       let pp_sep ppf () = Format.fprintf ppf ";@ " in
       Format.fprintf ppf "@[<1>[%a]@]" (Format.pp_print_list ~pp_sep e.pp) l
     in
-    v ~pp ~equal ()
+    let name = match String.contains e.name ' ' with
+    | true -> strf "(%s) list" e.name
+    | false -> strf "%s list" e.name
+    in
+    v ~name ~pp ~equal ()
 end
 
 type 'a dom = 'a Dom.t
+
+(* Variables *)
+
+type 'a var = { id : int; name : string option; tid : 'a tid; }
+
+module Var = struct
+  type t = V : 'a var -> t
+  let compare (V v0) (V v1) = (compare : int -> int -> int) v0.id v1.id
+end
 
 (* Terms
 
@@ -193,96 +212,122 @@ type 'a dom = 'a Dom.t
    variables. This allows to keep variables untyped which seems to
    lead to a more lightweight edsl. *)
 
-type 'a var = { id : int; name : string option; tid : 'a tid; }
-and 'a tapp = 'a
-and 'a term =
-| Var : 'a var -> 'a term
-| Pure : 'a -> 'a tapp term
-| App : ('a -> 'b) tapp term * 'a dom * 'a term -> 'b tapp term
-| Ret : 'a dom * 'a tapp term -> 'a term
+type 'a term =
+| Var of 'a var
+| Ret of 'a dom * 'a ret
 
-(* Variables *)
+and 'a ret =
+| App : ('a -> 'b) ret * 'a dom * 'a term -> 'b ret
+| Pure : 'a -> 'a ret
 
 let var ?name id = Var { id; name; tid = tid () }
-let eq_var t0 t1 = match t0, t1 with
-| Var v0, Var v1 -> v0.id = v1.id
-| _ -> false
-
-(* Constants *)
-
 let const dom v = Ret (dom, Pure v)
+let pure f = Pure f
+let app dom v ret = App (ret, dom, v)
+let ret dom ret = Ret (dom, ret)
+
 let unit = const Dom.unit ()
 let bool = const Dom.bool
 let int = const Dom.int
 let float = const Dom.float
 let string = const Dom.string
 
-(* Functions *)
-
-type 'a app = 'a tapp term
-
-let pure f = Pure f
-let app dom v app = App (app, dom, v)
-let ret dom app = Ret (dom, app)
-
 let pair fst snd = (fst, snd)
 let pair fdom sdom tdom =
   fun fst snd -> pure pair |> app fdom fst |> app sdom snd |> ret tdom
 
+let pp_var ppf v = match v.name with
+| Some n -> Format.fprintf ppf "%s" n
+| None -> Format.fprintf ppf "_%d" v.id
+
+let rec pp_term : type a. Format.formatter -> a term -> unit =
+(* FIXME not T.R. *)
+fun ppf -> function
+| Var v -> pp_var ppf v
+| Ret (d, ret) ->
+    match ret with
+    | Pure v -> d.Dom.pp ppf v
+    | App _ as ret ->
+        Format.fprintf ppf "@[<1>(<func>"; (* FIXME add a name to Ret ? *)
+        pp_ret ppf ret;
+        Format.fprintf ppf ")@]";
+
+and pp_ret : type a. Format.formatter -> a ret -> unit =
+fun ppf -> function
+| Pure _ -> ()
+| App (f, d, v) -> Format.fprintf ppf "@ %a" pp_term v; pp_ret ppf f
+
 (* Substitutions *)
 
 module Subst = struct
-
-  module Var = struct
-    type t = V : 'a var -> t
-    let compare (V k0) (V k1) = (compare : int -> int -> int) k0.id k1.id
-  end
-
   module Vmap = Map.Make (Var)
-
   type binding = B : 'a var * 'a term -> binding
   type t = binding Vmap.t
 
   let empty = Vmap.empty
-  let add k v s = Vmap.add (Var.V k) (B (k, v)) s
+  let add var t s = Vmap.add (Var.V var) (B (var, t)) s
   let find : type a. a var -> t -> a term option =
   fun v s ->
-    try match Vmap.find (Var.V v) s with
-    | B (var', t) ->
-        match teq v.tid var'.tid with
-        | None -> None
-        | Some Teq -> Some t
+    try
+      let B (v', t) = Vmap.find (Var.V v) s in
+      match teq v.tid v'.tid with None -> None | Some Teq -> Some t
     with Not_found -> None
 end
 
+let rec _term_value : type a. a term -> Subst.t -> a =
+fun t s -> match t with
+| Ret (d, t) -> _ret_value t s
+| Var v ->
+    match Subst.find v s with
+    | Some t -> _term_value t s
+    | None -> raise Exit
+
+and _ret_value : type a. a ret -> Subst.t -> a =
+fun r s -> match r with
+| Pure v -> v
+| App (f, _, v) -> (_ret_value f s) (_term_value v s)
+
+let term_value t s = try Some (_term_value t s) with Exit -> None
+let ret_value t s = try Some (_ret_value t s) with Exit -> None
+
+let rec term_ret : type a. a term -> Subst.t -> (a dom * a ret) option =
+fun t s -> match t with
+| Ret (d, t) -> Some (d, t)
+| Var v ->
+    match Subst.find v s with
+    | Some t -> term_ret t s
+    | None -> None
+
 (* Unification *)
 
-let rec walk : 'a term -> Subst.t -> 'a term =
-fun t s -> match t with
+let rec walk t s = match t with
 | Var v -> (match Subst.find v s with None -> t | Some v -> walk v s)
 | t -> t
 
 let rec unify : type a. a term -> a term -> Subst.t -> Subst.t option =
+(* FIXME not T.R. *)
 fun t0 t1 s -> match walk t0 s, walk t1 s with
-| (Var _ as v0), (Var _ as v1) when eq_var v0 v1 -> Some s
+| Var v0, Var v1 when v0.id = v1.id -> Some s
 | Var v, t | t, Var v -> Some (Subst.add v t s)
-| Pure _, Pure _ -> Some s (* must unify by semantics *)
-| Ret (d0, app0), Ret (d1, app1) ->
+| Ret (d0, r0), Ret (d1, r1) ->
     if not (d0.Dom.tid == d1.Dom.tid) then None else
-    begin match app0, app1 with
+    match r0, r1 with
     | Pure v0, Pure v1 -> if d0.Dom.equal v0 v1 then Some s else None
-    | App _, App _ -> unify app0 app1 s
+    | App _, App _ -> unify_ret r0 r1 s
     | _, _ -> None
-    end
+
+and unify_ret : type a. a ret -> a ret -> Subst.t -> Subst.t option =
+fun r0 r1 s -> match r0, r1 with
 | App (f0, d0, v0), App (f1, d1, v1) ->
     begin match teq d0.Dom.tid d1.Dom.tid with
     | None -> None
     | Some Teq ->
-        begin match unify v0 v1 s with
+        match unify v0 v1 s with
         | None -> None
-        | Some s -> unify f0 f1 s
-        end
+        | Some s -> unify_ret f0 f1 s
     end
+| Pure _, Pure _ -> Some s (* must unify by semantics,
+                              FIXME what about testing with == *)
 | _, _ -> None
 
 (* State *)
@@ -309,39 +354,44 @@ let ( || ) g0 g1 st = Seq.mplus (g0 st) (g1 st)
 let ( && ) g0 g1 st = Seq.bind (g0 st) g1
 let delay gazy st = Seq.delay (lazy ((Lazy.force gazy) st))
 
+(* Reification *)
+
+module Value = struct
+  type 'a t = 'a term * Subst.t
+
+  let v var subst = (var, subst)
+
+  let name (var, _) = match var with
+  | Var v -> Format.asprintf "%a" pp_var v | _ -> assert false
+
+  let find (var, subst) = term_value var subst
+  let get (var, subst) = match term_value var subst with
+  | None -> invalid_arg (strf "%a is undefined" pp_term var)
+  | Some v -> v
+
+  let term (var, subst) = walk var subst
+
+  let pp ppf (var, subst) = match term_ret var subst with
+  | None -> pp_term ppf var
+  | Some (d, ret) ->
+      match ret_value ret subst with
+      | Some v -> d.Dom.pp ppf v
+      | None -> pp_ret ppf ret
+end
+
+type 'a value = 'a Value.t
+type ('q, 'r) reifier = { next_id : int; query : 'q; reify : state -> 'r }
+
+let reifier query reify = { next_id = 0; query; reify = (fun _ -> reify) }
+let var ?name r =
+  let var = var ?name r.next_id in
+  let query = r.query var in
+  let reify st = r.reify st (Value.v var st.subst) in
+  let next_id = r.next_id + 1 in
+  { next_id; query; reify }
+
+let run r = Seq.map r.reify (r.query { empty with next_id = r.next_id })
 let rec success g = not (Seq.is_empty (g empty))
-
-(* Reifying goals *)
-
-let rec term_value : type a. a term -> Subst.t -> a =
-fun t s -> match t with
-| Var v ->
-    begin match Subst.find v s with
-    | Some t -> term_value t s
-    | _ -> raise Exit
-    end
-| Pure v -> v
-| Ret (_, t) -> term_value t s
-| App (f, _, v) ->
-    let f = term_value f s in
-    let v = term_value v s in
-    f v
-
-type ('a, 'b) reify = int * 'a * (state -> 'b)
-
-let reify inj proj = 0, inj, (fun _ -> proj)
-
-let var (next_id, inj, proj) =
-  let var = var next_id in
-  let inj = inj var in
-  let proj st = proj st (term_value var st.subst) in
-  (next_id + 1, inj, proj)
-
-let _find (next_id, goal, proj) = Seq.map proj (goal { empty with next_id })
-
-let find reify = try Ok (_find reify) with Exit -> Error `Undefined
-let get reify = try _find reify with
-| Exit -> invalid_arg "a result variable is undefined"
 
 (*---------------------------------------------------------------------------
    Copyright (c) 2017 Daniel C. Bünzli
