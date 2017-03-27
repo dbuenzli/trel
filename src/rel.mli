@@ -6,7 +6,7 @@
 
 (** Relational programming for OCaml.
 
-    [Rel] is an embedded typed relational programming language.
+    [Rel] is a typed, relational, programming language embedded in OCaml.
 
     {b References.}
     {ul
@@ -28,14 +28,14 @@ module Dom : sig
   (** {1:dom Domains} *)
 
   type 'a t = 'a dom
-  (** The type for domains, see {!type:dom}. *)
+  (** See {!type:dom}. *)
 
   val v :
     ?pp:(Format.formatter -> 'a -> unit) -> ?equal:('a -> 'a -> bool) ->
     unit -> 'a dom
-  (** [v ~pp ~eq] is a new domain using [equal] to test values for equality
-      (defaults to {!Pervasives.( = )}) and [pp] to print them (defaults
-      to a formatter that constantly prints ["<abstr>"]). *)
+  (** [v ~pp ~equal] is a new domain using [equal] to test values for equality
+      and [pp] to print them. [equal] defaults to {!Pervasives.( = )} and
+      [pp] to a formatter that constantly prints ["<abstr>"]). *)
 
   (** The type for modules that can be seen as domains. *)
   module type V = sig
@@ -95,30 +95,29 @@ type 'a term
 (** {2 Constants} *)
 
 val const : 'a dom -> 'a -> 'a term
-(** [const dom v] is a term for the constant [v] in domain [dom].
-
-    Two constants of the same type with {{!D.equal}non equal} domains
+(** [const dom v] is a term for the constant [v] in domain [dom]. Two
+    constants of the same type with {{!Dom.equal}different} domains
     never unify. *)
 
 val unit : unit term
-(** [unit] is [const D.unit ()]. *)
+(** [unit] is [const Dom.unit ()]. *)
 
 val bool : bool -> bool term
-(** [bool b] is [const D.bool b]. *)
+(** [bool b] is [const Dom.bool b]. *)
 
 val int : int -> int term
-(** [int i] is [const D.int i] *)
+(** [int i] is [const Dom.int i] *)
 
 val float : float -> float term
-(** [float f] is [const D.float f]. *)
+(** [float f] is [const Dom.float f]. *)
 
 val string : string -> string term
-(** [string s] is [const D.string s]. *)
+(** [string s] is [const Dom.string s]. *)
 
 (** {2:fapp Function applications}
 
-    Two function applications (constructor) {{!ret}returning} values in the
-    same domain unify if each of their argument unify. *)
+    Two function applications {{!ret}returning} values in the same
+    domain unify if each of their argument unify. *)
 
 type 'a app
 (** The type for function applications returning values of type ['a]. *)
@@ -132,7 +131,7 @@ val app : 'a dom -> 'a term -> ('a -> 'b) app -> 'b app
 
 val ret : 'b dom -> 'b app -> 'b term
 (** [ret d app] is a term that interprets the application [app] in
-    domain [d] and returns a term representing the function *)
+    domain [d] and returns a term representing the function application. *)
 
 (** {2:ptypes Polymorphic types} *)
 
@@ -143,7 +142,8 @@ val pair :
 (** {1 Goals} *)
 
 type goal
-(** The type for goals. A goal either {e succeeds} or {e fails}. *)
+(** The type for goals. In a given state a goal either {e succeeds} or
+    {e fails}. *)
 
 val fail : goal
 (** [fail] is a goal that always fails. *)
@@ -162,28 +162,55 @@ val ( && ) : goal -> goal -> goal
 (** [g0 && g1] is a goal succeeds if both [g0] and [g1] succeed. *)
 
 val fresh : ('a term -> goal) -> goal
-(** [fresh f] is the [f v] with [v] a fresh logical variable. *)
-
-val success : goal -> bool
-(** [success g] is [true] iff [g] succeeds on the empty state. *)
+(** [fresh f] is the goal [f v] with [v] a fresh logical variable. *)
 
 val delay : goal Lazy.t -> goal
 (** [delay gazy] sees the lazy goal [gazy] as a goal. *)
 
-(** {1 Streams of values} *)
-
-type 'a stream
-val next : 'c stream -> ('c * 'c stream) option
-val all : 'c stream -> 'c list
-val head : 'c stream -> 'c
-
 (** {1 Reifying goals} *)
+
+val success : goal -> bool
+(** [success g] is [true] iff [g] succeeds on the empty state. *)
+
+type 'a seq
+(** The type for (possibly infinite) sequences of values of type ['a]. *)
+
+(** Lazy sequences of values. *)
+module Seq : sig
+
+  (** {1 Sequences} *)
+
+  type 'a t = 'a seq
+  (** See {!seq}. *)
+
+  val empty : 'a seq
+  (** [empty] is the empty sequence. *)
+
+  val is_empty : 'a seq -> bool
+  (** [is_empty s] is true iff [s] is {!empty}. *)
+
+  val head : 'a seq -> 'a option
+  (** [head s] is [s]'s head (if any). *)
+
+  val get_head : 'a seq -> 'a
+  (** [get_head s] is like {!head} but @raise Invalid_argument if
+      if [s] is {!empty}. *)
+
+  val tail : 'a seq -> 'a seq
+  (** [tail s] is [s]'s tail.
+
+      @raise Invalid_argument if [s] is empty. *)
+
+  val to_list : ?limit:int -> 'a seq -> 'a list
+  (** [to_list ~limit s] is, at most, the first [limit] elements of [s].
+      If [limit] is unspecified it is unbounded. *)
+end
 
 type ('a, 'b) reify
 val reify : 'a -> 'b -> ('a, 'b) reify
 val var : ('a term -> 'b, 'a -> 'c) reify -> ('b, 'c) reify
-val find : (goal, 'c) reify -> ('c stream, [`Undefined]) result
-val get : (goal, 'c) reify -> 'c stream
+val find : (goal, 'c) reify -> ('c Seq.t, [`Undefined]) result
+val get : (goal, 'c) reify -> 'c Seq.t
 
 (*---------------------------------------------------------------------------
    Copyright (c) 2017 Daniel C. Bünzli

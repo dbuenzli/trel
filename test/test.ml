@@ -6,48 +6,68 @@
 
 let id x = x
 
-let q q = Rel.(q = int 5)
-let q = Rel.(var @@ reify q id)
-let () = assert (Rel.(all @@ get q) = [5])
+let assert_vals ?limit q vals =
+  let q = Rel.(var @@ reify q id) in
+  assert (Rel.(Seq.to_list ?limit @@ get q) = vals)
 
-let x x =
-  Rel.(fresh @@ fun y ->
-       fresh @@ fun z ->
-       x = y && y = z && z = int 3)
-let x = Rel.(var @@ reify x id)
-let () = assert (Rel.(all @@ get x) = [3])
+let test_simple_unify () =
+  let q q = Rel.(q = int 5) in
+  assert_vals q [5];
+  ()
 
-let ab_inj a b = Rel.(a = int 7 && (b = int 5 || b = int 6))
-let ab_prj a b = (a, b)
-let ab = Rel.(var @@ var @@ reify ab_inj ab_prj)
-let () = assert (Rel.(all @@ get ab) = [(7, 5); (7, 6)])
+let test_disj () =
+  let q q = Rel.(q = int 5 || q = int 6) in
+  assert_vals q [5;6];
+  ()
 
-let p2 = Rel.(pair Dom.int Dom.bool Dom.(pair int bool))
-let p2 p =
-  Rel.(fresh @@ fun x ->
-       fresh @@ fun y ->
-       p = (p2 x y) && x = int 5 && y = bool true)
-let p2 = Rel.(var @@ reify p2 id)
-let () = assert (Rel.(all @@ get p2) = [5, true])
+let test_conj () =
+  let x x =
+    let open Rel in
+    fresh @@ fun y ->
+    fresh @@ fun z ->
+    x = y && y = z && z = int 3
+  in
+  assert_vals x [3];
+  ()
 
-let triple x y z = (x, y, z)
-let p3 x y z = Rel.(pure triple |>
-                    app Dom.int x |> app Dom.bool y |> app Dom.string z |>
-                    ret (Dom.v ()))
-let p3 p =
-  Rel.(fresh @@ fun x ->
-       fresh @@ fun y ->
-       fresh @@ fun z ->
-       p = p3 x y z && x = int 5 && y = bool true && z = string "bla")
-let p3 = Rel.(var @@ reify p3 id)
-let () = assert (Rel.(all @@ get p3) = [ 5, true, "bla" ])
+let test_query () =
+  let ab a b = Rel.(a = int 7 && (b = int 5 || b = int 6)) in
+  let ab_prj a b = (a, b) in
+  let ab = Rel.(var @@ var @@ reify ab ab_prj) in
+  assert (Rel.(Seq.to_list @@ get ab) = [(7, 5); (7, 6)]);
+  ()
 
-let rec fives x = Rel.(x = int 5 || delay (lazy (fives x)))
-let fives = Rel.(var @@ reify fives id)
-let () = assert (Rel.(head @@ get fives) = 5)
+let test_pair () =
+  let p2 = Rel.(pair Dom.int Dom.bool Dom.(pair int bool)) in
+  let p p =
+    let open Rel in
+    fresh @@ fun x ->
+    fresh @@ fun y ->
+    p = (p2 x y) && x = int 5 && y = bool true
+  in
+  assert_vals p [5, true];
+  ()
 
-(* These examples are from sokuza-karen
-   http://okmij.org/ftp/Scheme/sokuza-kanren.scm *)
+let test_fapp () =
+  let triple x y z = (x, y, z) in
+  let t3 x y z =
+    let open Rel in
+    pure triple |> app Dom.int x |> app Dom.bool y |> app Dom.string z |>
+    ret (Dom.v ())
+  in
+  let t t =
+    let open Rel in
+    fresh @@ fun x ->
+    fresh @@ fun y ->
+    fresh @@ fun z ->
+    t = t3 x y z && x = int 5 && y = bool true && z = string "bla"
+  in
+  assert_vals t [(5, true, "bla")];
+  ()
+
+let test_delay () =
+  let rec fives x = Rel.(x = int 5 || delay (lazy (fives x))) in
+  assert_vals ~limit:2 fives [5;5]
 
 let listo d dl =
   let empty = Rel.(const dl []) in
@@ -80,105 +100,75 @@ let listo d dl =
   in
   empty, cons, hd, tl, list, conso, heado, tailo, appendo, revo
 
+
 let iempty, icons, ihd, itl, ilist, iconso, iheado, tailo, iappendo, irevo =
   listo Rel.Dom.int Rel.Dom.(list int)
 
-let il = ilist [1;2;3]
-let ilh = ihd il
-let ilt = itl il
-
-let () =
-  assert (Rel.(all @@ get (Rel.var @@ reify (fun l -> il = l) id)) = [[1;2;3]]);
-  assert (Rel.(all @@ get (Rel.var @@ reify (fun l -> ilh = l) id)) = [1]);
-  assert (Rel.(all @@ get (Rel.var @@ reify (fun l -> ilt = l) id)) = [[2;3]]);
+let test_ilist () =
+  let il = ilist [1;2;3] in
+  let ilh = ihd il in
+  let ilt = itl il in
+  assert_vals Rel.(fun l -> il = l) [[1;2;3]];
+  assert_vals Rel.(fun l -> ilh = l) [1];
+  assert_vals Rel.(fun l -> ilt = l) [[2;3]];
+  assert_vals (Rel.(fun l -> iconso (Rel.int 1) (ilist [2;3]) l)) [[1;2;3]];
   ()
 
-let l l = Rel.(iconso (Rel.int 1) (ilist [2;3]) l)
-let l = Rel.(var @@ reify l id)
-let () = assert (Rel.(all @@ get l) = [[1;2;3]])
+let test_ilist_match () =
+  let m4tch x xs = Rel.(iconso x xs (ilist [1;2;3])) in
+  let m4tch = Rel.(var @@ var @@ reify m4tch (fun x xs -> x, xs)) in
+  assert (Rel.(Seq.to_list @@ get m4tch) = [(1, [2;3])]);
+  ()
 
-let m4tch x xs = Rel.(iconso x xs (ilist [1;2;3]))
-let m4tch = Rel.(var @@ var @@ reify m4tch (fun x xs -> x, xs))
-let () = assert (Rel.(all @@ get m4tch) = [(1, [2;3])])
+let test_ilist_appendo () =
+  assert_vals
+    (fun l -> iappendo (ilist [1;2;3]) (ilist [4;5;6]) l) [[1;2;3;4;5;6]];
+  assert_vals
+    (fun l -> iappendo l (ilist [4;5;6]) (ilist [1;2;3;4;5;6])) [[1;2;3]];
+  assert_vals
+    (fun l -> iappendo (ilist [1;2]) l (ilist [1;2;3;4;5;6])) [[3;4;5;6]];
+  assert
+    (not (Rel.success (iappendo (ilist [1]) (ilist [2]) (ilist [3]))));
+  ()
 
-let l l = iappendo (ilist [1;2;3]) (ilist [4;5;6]) l
-let l = Rel.(var @@ reify l id)
-let () = assert (Rel.(all @@ get l) = [[1;2;3;4;5;6]])
+let test_ilist_pre_suf () =
+  let pre l pre = Rel.(fresh @@ fun suf -> iappendo pre suf l) in
+  let suf l suf = Rel.(fresh @@ fun pre -> iappendo pre suf l) in
+  let pre_suf l pre suf = iappendo pre suf l in
+  let l = ilist [1;2;3;4] in
+  assert_vals (pre l) [[]; [1]; [1;2]; [1;2;3]; [1;2;3;4]];
+  assert_vals (suf l) [[1;2;3;4]; [2;3;4]; [3;4]; [4]; []];
+  let pre_suf = Rel.(var @@ var @@
+               reify (fun p s -> pre_suf l p s) (fun p s -> (p, s)))
+  in
+  assert (Rel.(Seq.to_list @@ get pre_suf) =
+          [([], [1;2;3;4]);
+           ([1], [2;3;4]);
+           ([1;2], [3;4]);
+           ([1;2;3], [4]);
+           ([1;2;3;4], [])]);
+  ()
 
-let l l = iappendo l (ilist [4;5;6]) (ilist [1;2;3;4;5;6])
-let l = Rel.(var @@ reify l id)
-let () = assert (Rel.(all @@ get l) = [[1;2;3]])
+let test_ilist_revo () =
+  assert_vals ~limit:1 (fun r -> irevo (ilist [1;2;3]) r) [[3;2;1]];
+  ()
 
-let l l = iappendo (ilist [1;2]) l (ilist [1;2;3;4;5;6])
-let l = Rel.(var @@ reify l id)
-let () = assert (Rel.(all @@ get l) = [[3;4;5;6]])
+let test () =
+  test_simple_unify ();
+  test_disj ();
+  test_conj ();
+  test_query ();
+  test_pair ();
+  test_fapp ();
+  test_delay ();
+  test_ilist_match ();
+  test_ilist_appendo ();
+  test_ilist_pre_suf ();
+  test_ilist_revo ();
+  print_endline "All tests succeeded!";
+  ()
 
-let l = iappendo (ilist [1]) (ilist [2]) (ilist [3])
-let () = assert (not (Rel.success l))
-
-let l pre =
-  Rel.(fresh @@ fun suf ->
-       iappendo pre suf (ilist [1;2;3;4]))
-
-let l = Rel.(var @@ reify l id)
-let () = assert (Rel.(all @@ get l) = [[]; [1]; [1;2]; [1;2;3]; [1;2;3;4]])
-
-let l suf =
-  Rel.(fresh @@ fun pre ->
-       iappendo pre suf (ilist [1;2;3;4]))
-
-let l = Rel.(var @@ reify l id)
-let () = assert (Rel.(all @@ get l) = [[1;2;3;4]; [2;3;4]; [3;4]; [4]; []])
-
-let l pre suf = iappendo pre suf (ilist [1;2;3;4])
-let l = Rel.(var @@ var @@ reify l (fun p s -> (p, s)))
-let () = assert (Rel.(all @@ get l) =
-                 [([], [1;2;3;4]);
-                  ([1], [2;3;4]);
-                  ([1;2], [3;4]);
-                  ([1;2;3], [4]);
-                  ([1;2;3;4], [])])
-
-let r l = irevo (ilist [1;2;3]) l
-let r = Rel.(var @@ reify r id)
-let () = assert (Rel.(head @@ get r) = [3;2;1])
-
-module Btree = struct
-  type t = Node of int * t * t | Nil
-  let rec equal t0 t1 = match t0, t1 with
-  | Nil, Nil -> true
-  | Node (v0,l0,r0), Node (v1,l1,r1) -> v0 = v1 && equal l0 l1 && equal r0 r1
-  | _, _ -> false
-
-  let rec pp ppf = function
-  | Nil -> Format.fprintf ppf "Nil"
-  | Node (v, l, r) ->
-      Format.fprintf ppf "@[Node @[<1>(%d,@ %a,@ %a)@]" v pp l pp r
-
-  let nil = Nil
-  let node v l r = Node (v, l, r)
-
-  let rec fold t f z =
-    let rec loop acc = function
-    | Nil -> z
-    | Node (v, l, r) -> f v
-    in
-    loop z t
-end
-
-let dom_btree = Rel.Dom.of_type (module Btree)
-
-let lnil = Rel.const dom_btree Btree.nil
-let lnode v l r = Rel.(pure Btree.node |>
-                       app Dom.int v |> app dom_btree l |> app dom_btree r |>
-                       ret dom_btree)
-
-let rec linj = function
-| Btree.Nil -> lnil
-| Btree.Node (v, l, r) -> lnode (Rel.int v) (linj l) (linj r)
-
-
-let () = print_endline "All tests succeeded!"
+let () = test ()
 
 (*---------------------------------------------------------------------------
    Copyright (c) 2017 Daniel C. Bünzli

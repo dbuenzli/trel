@@ -11,6 +11,76 @@
    In Proceedings of the 2013 Workshop on Scheme and Functional Programming
    (Scheme '13), Alexandria, VA, 2013. *)
 
+(* Lazy sequences of values. *)
+
+let strf = Printf.sprintf
+
+module Seq = struct
+
+  type 'a t =
+  | Empty
+  | Cons of 'a * 'a t
+  | Delay of 'a t Lazy.t
+
+  let empty = Empty
+  let cons v s = Cons (v, s)
+  let delay sazy = Delay sazy
+
+  let rec is_empty s = match s with
+  | Empty -> true
+  | Cons _ -> false
+  | Delay s -> is_empty (Lazy.force s)
+
+  let rec head = function
+  | Empty -> None
+  | Cons (v, s) -> Some v
+  | Delay s -> head (Lazy.force s)
+
+  let rec get_head = function
+  | Empty -> invalid_arg "Sequence is empty"
+  | Cons (v, s) -> v
+  | Delay s -> get_head (Lazy.force s)
+
+  let rec tail = function
+  | Empty -> invalid_arg "Sequence is empty"
+  | Cons (v, s) -> s
+  | Delay s -> tail (Lazy.force s)
+
+  let to_list ?limit s =
+    let limit = match limit with
+    | Some l when l < 0 -> invalid_arg (strf "negative limit (%d)" l)
+    | Some l -> l
+    | None -> -1
+    in
+    let rec loop limit acc s =
+      if limit = 0 then List.rev acc else
+      match s with
+      | Empty -> List.rev acc
+      | Delay s -> loop limit acc (Lazy.force s)
+      | Cons (v, s) ->
+          let limit = if limit = -1 then limit else limit - 1 in
+          loop limit (v :: acc) s
+    in
+    loop limit [] s
+
+  let rec mplus s0 s1 = match s0 with
+  | Empty -> s1
+  | Cons (v, s0) -> Cons (v, Delay (lazy (mplus s1 s0)))
+  | Delay s0 -> Delay (lazy (mplus s1 (Lazy.force s0)))
+
+  let rec bind s f = match s with
+  | Empty -> Empty
+  | Cons (v, s) -> mplus (f v) (bind s f)
+  | Delay s -> Delay (lazy (bind (Lazy.force s) f))
+
+  let rec map f s = match s with
+  | Empty -> Empty
+  | Cons (v, s) -> Cons (f v, map f s)
+  | Delay s -> Delay (lazy (map f (Lazy.force s)))
+end
+
+type 'a seq = 'a Seq.t
+
 (* Type identifiers
    See http://alan.petitepomme.net/cwn/2015.03.24.html#1 *)
 
@@ -123,7 +193,6 @@ type 'a dom = 'a Dom.t
    variables. This allows to keep variables untyped which seems to
    lead to a more lightweight edsl. *)
 
-
 type 'a var = { id : int; name : string option; tid : 'a tid; }
 and 'a tapp = 'a
 and 'a term =
@@ -135,8 +204,7 @@ and 'a term =
 (* Variables *)
 
 let var ?name id = Var { id; name; tid = tid () }
-let eq_var : 'a 'b. 'a term -> 'b term -> bool =
-fun t0 t1 -> match t0, t1 with
+let eq_var t0 t1 = match t0, t1 with
 | Var v0, Var v1 -> v0.id = v1.id
 | _ -> false
 
@@ -222,73 +290,26 @@ fun t0 t1 s -> match walk t0 s, walk t1 s with
 type state = { next_id : int; subst : Subst.t }
 let empty = { next_id = 0; subst = Subst.empty }
 
-(* Streams *)
-
-type 'a stream =
-| Empty
-| Mature of 'a * 'a stream
-| Immature of 'a stream Lazy.t
-
-let rec is_empty s = match s with
-| Empty -> true
-| Mature _ -> false
-| Immature s -> is_empty (Lazy.force s)
-
-let rec head = function
-| Empty -> invalid_arg "Empty stream"
-| Mature (v, s) -> v
-| Immature s -> head (Lazy.force s)
-
-let rec next = function
-| Empty -> None
-| Mature (v, s) -> Some (v, s)
-| Immature s -> next (Lazy.force s)
-
-let all s =
-  let rec loop acc = function
-  | Empty -> List.rev acc
-  | Mature (v, s) -> loop (v :: acc) s
-  | Immature s -> loop acc (Lazy.force s)
-  in
-  loop [] s
-
-let rec smplus s0 s1 = match s0 with
-| Empty -> s1
-| Mature (v, s0) -> Mature (v, Immature (lazy (smplus s1 s0)))
-| Immature s0 -> Immature (lazy (smplus s1 (Lazy.force s0)))
-
-let rec sbind s f = match s with
-| Empty -> Empty
-| Mature (v, s) -> smplus (f v) (sbind s f)
-| Immature s -> Immature (lazy (sbind (Lazy.force s) f))
-
-let rec smap f s = match s with
-| Empty -> Empty
-| Mature (v, s) -> Mature (f v, smap f s)
-| Immature s -> Immature (lazy (smap f (Lazy.force s)))
-
 (* Goals *)
 
-type goal = state -> state stream
-let fail _ = Empty
-let succeed s = Mature (s, Empty)
+type goal = state -> state Seq.t
 
-let ( = ) : 'a term -> 'a term -> goal =
-fun t0 t1 st -> match unify t0 t1 st.subst with
-| None -> Empty
+let fail _ = Seq.empty
+let succeed st = Seq.cons st Seq.empty
+
+let ( = ) t0 t1 st = match unify t0 t1 st.subst with
+| None -> Seq.empty
 | Some subst -> succeed { st with subst }
 
-let fresh : ('a term -> goal) -> goal =
-fun f st ->
+let fresh lambda st =
   let var = var st.next_id in
-  f var { st with next_id = st.next_id + 1 }
+  lambda var { st with next_id = st.next_id + 1 }
 
-let ( || ) : goal -> goal -> goal = fun g0 g1 st -> smplus (g0 st) (g1 st)
-let ( && ) : goal -> goal -> goal = fun g0 g1 st -> sbind (g0 st) g1
+let ( || ) g0 g1 st = Seq.mplus (g0 st) (g1 st)
+let ( && ) g0 g1 st = Seq.bind (g0 st) g1
+let delay gazy st = Seq.delay (lazy ((Lazy.force gazy) st))
 
-let rec success g = not (is_empty (g empty))
-
-let delay gazy st = Immature (lazy ((Lazy.force gazy) st))
+let rec success g = not (Seq.is_empty (g empty))
 
 (* Reifying goals *)
 
@@ -316,7 +337,7 @@ let var (next_id, inj, proj) =
   let proj st = proj st (term_value var st.subst) in
   (next_id + 1, inj, proj)
 
-let _find (next_id, goal, proj) = smap proj (goal { empty with next_id })
+let _find (next_id, goal, proj) = Seq.map proj (goal { empty with next_id })
 
 let find reify = try Ok (_find reify) with Exit -> Error `Undefined
 let get reify = try _find reify with
