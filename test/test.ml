@@ -18,24 +18,15 @@ let test_simple_unify () =
   assert_vals (fun q -> Rel.(q = int 5 || q = int 6)) [5;6];
   assert_2vals
     (fun a b -> Rel.(a = int 7 && (b = int 5 || b = int 6))) [(7, 5); (7, 6)];
-  ()
-
-let test_conj () =
-  let x x =
-    let open Rel in
-    fresh @@ fun y ->
-    fresh @@ fun z ->
-    x = y && y = z && z = int 3
-  in
-  assert_vals x [3];
+  assert_vals
+    (fun x -> Rel.(Fresh.v2 @@ fun y z -> x = y && y = z && z = int 3)) [3];
   ()
 
 let test_pair () =
   let p2 = Rel.(pair Dom.int Dom.bool Dom.(pair int bool)) in
   let p p =
     let open Rel in
-    fresh @@ fun x ->
-    fresh @@ fun y ->
+    Fresh.v2 @@ fun x y ->
     p = (p2 x y) && x = int 5 && y = bool true
   in
   assert_vals p [5, true];
@@ -50,9 +41,7 @@ let test_fapp () =
   in
   let t t =
     let open Rel in
-    fresh @@ fun x ->
-    fresh @@ fun y ->
-    fresh @@ fun z ->
+    Fresh.v3 @@ fun x y z ->
     t = t3 x y z && x = int 5 && y = bool true && z = string "bla"
   in
   assert_vals t [(5, true, "bla")];
@@ -78,7 +67,7 @@ let listo d dl =
        List.append (x :: xs) l = x :: (List.append xs l) *)
     let open Rel in
     (l0 = empty && l1 = l) ||
-    (fresh @@ fun x -> fresh @@ fun xs -> fresh @@ fun tl ->
+    (Fresh.v3 @@ fun x xs tl ->
      (cons x xs) = l0 &&
      (cons x tl) = l  &&
      delay @@ lazy (appendo xs l1 tl))
@@ -86,7 +75,7 @@ let listo d dl =
   let rec revo l r =
     let open Rel in
     (l = empty && r = empty) ||
-    (fresh @@ fun x -> fresh @@ fun xs -> fresh @@ fun rt ->
+    (Fresh.v3 @@ fun x xs rt ->
      (cons x xs) = l &&
      delay @@ lazy (revo xs rt) &&
      appendo rt (cons x empty) r)
@@ -140,7 +129,6 @@ let test_ilist_revo () =
 
 let test () =
   test_simple_unify ();
-  test_conj ();
   test_pair ();
   test_fapp ();
   test_delay ();

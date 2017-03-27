@@ -178,11 +178,26 @@ val ( || ) : goal -> goal -> goal
 val ( && ) : goal -> goal -> goal
 (** [g0 && g1] is a goal succeeds if both [g0] and [g1] succeed. *)
 
+val delay : goal Lazy.t -> goal
+(** [delay gazy] sees the lazy goal [gazy] as a goal. *)
+
 val fresh : ('a term -> goal) -> goal
 (** [fresh f] is the goal [f v] with [v] a fresh logical variable. *)
 
-val delay : goal Lazy.t -> goal
-(** [delay gazy] sees the lazy goal [gazy] as a goal. *)
+(** Multiple freshness introduction. *)
+module Fresh : sig
+
+  (** {1 Fresh} *)
+
+  val v1 : ('a term -> goal) -> goal
+  val v2 : ('a term -> 'b term -> goal) -> goal
+  val v3 : ('a term -> 'b term -> 'c term -> goal) -> goal
+  val v4 : ('a term -> 'b term -> 'c term -> 'd term -> goal) -> goal
+  val v5 : ('a term -> 'b term -> 'c term -> 'd term -> 'e term -> goal) -> goal
+  val v6 :
+    ('a term -> 'b term -> 'c term -> 'd term -> 'e term -> 'f term -> goal) ->
+    goal
+end
 
 (** {1 Reification} *)
 

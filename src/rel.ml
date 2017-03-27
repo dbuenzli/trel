@@ -346,13 +346,51 @@ let ( = ) t0 t1 st = match unify t0 t1 st.subst with
 | None -> Seq.empty
 | Some subst -> succeed { st with subst }
 
+let ( || ) g0 g1 st = Seq.mplus (g0 st) (g1 st)
+let ( && ) g0 g1 st = Seq.bind (g0 st) g1
+let delay gazy st = Seq.delay (lazy ((Lazy.force gazy) st))
+
 let fresh lambda st =
   let var = var st.next_id in
   lambda var { st with next_id = st.next_id + 1 }
 
-let ( || ) g0 g1 st = Seq.mplus (g0 st) (g1 st)
-let ( && ) g0 g1 st = Seq.bind (g0 st) g1
-let delay gazy st = Seq.delay (lazy ((Lazy.force gazy) st))
+module Fresh = struct
+  let v1 = fresh
+  let v2 lambda st =
+    let v1 = var (st.next_id    ) in
+    let v2 = var (st.next_id + 1) in
+    (lambda v1 v2) { st with next_id = st.next_id + 2 }
+
+  let v3 lambda st =
+    let v1 = var (st.next_id    ) in
+    let v2 = var (st.next_id + 1) in
+    let v3 = var (st.next_id + 2) in
+    (lambda v1 v2 v3) { st with next_id = st.next_id + 3 }
+
+  let v4 lambda st =
+    let v1 = var (st.next_id    ) in
+    let v2 = var (st.next_id + 1) in
+    let v3 = var (st.next_id + 2) in
+    let v4 = var (st.next_id + 3) in
+    (lambda v1 v2 v3 v4) { st with next_id = st.next_id + 4 }
+
+  let v5 lambda st =
+    let v1 = var (st.next_id    ) in
+    let v2 = var (st.next_id + 1) in
+    let v3 = var (st.next_id + 2) in
+    let v4 = var (st.next_id + 3) in
+    let v5 = var (st.next_id + 4) in
+    (lambda v1 v2 v3 v4 v5) { st with next_id = st.next_id + 5 }
+
+  let v6 lambda st =
+    let v1 = var (st.next_id    ) in
+    let v2 = var (st.next_id + 1) in
+    let v3 = var (st.next_id + 2) in
+    let v4 = var (st.next_id + 3) in
+    let v5 = var (st.next_id + 4) in
+    let v6 = var (st.next_id + 5) in
+    (lambda v1 v2 v3 v4 v5 v6) { st with next_id = st.next_id + 6 }
+end
 
 (* Reification *)
 
