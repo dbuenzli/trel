@@ -421,7 +421,7 @@ type 'a value = 'a Value.t
 type ('q, 'r) reifier = { next_id : int; query : 'q; reify : state -> 'r }
 
 let reifier query reify = { next_id = 0; query; reify = (fun _ -> reify) }
-let var ?name r =
+let query ?name r =
   let var = var ?name r.next_id in
   let query = r.query var in
   let reify st = r.reify st (Value.v var st.subst) in

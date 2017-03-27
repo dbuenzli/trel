@@ -5,12 +5,12 @@
   ---------------------------------------------------------------------------*)
 
 let assert_vals ?limit q vals =
-  let q = Rel.(var @@ reifier q Value.get) in
+  let q = Rel.(query @@ reifier q Value.get) in
   assert (Rel.(Seq.to_list ?limit @@ run q) = vals)
 
 let assert_2vals ?limit q vals =
   let reify x y = Rel.Value.(get x, get y) in
-  let q = Rel.(var @@ var @@ reifier q reify) in
+  let q = Rel.(query @@ query @@ reifier q reify) in
   assert (Rel.(Seq.to_list ?limit @@ run q) = vals)
 
 let test_simple_unify () =
@@ -111,16 +111,12 @@ let test_ilist_pre_suf () =
   let l = ilist [1;2;3;4] in
   assert_vals (pre l) [[]; [1]; [1;2]; [1;2;3]; [1;2;3;4]];
   assert_vals (suf l) [[1;2;3;4]; [2;3;4]; [3;4]; [4]; []];
-  let pre_suf = pre_suf l in
-  let pre_suf = Rel.(var @@ var @@
-                     reifier pre_suf (fun p s -> Rel.Value.(get p, get s)))
-  in
-  assert (Rel.(Seq.to_list @@ run pre_suf) =
-          [([], [1;2;3;4]);
-           ([1], [2;3;4]);
-           ([1;2], [3;4]);
-           ([1;2;3], [4]);
-           ([1;2;3;4], [])]);
+  assert_2vals (pre_suf l)
+    [([], [1;2;3;4]);
+     ([1], [2;3;4]);
+     ([1;2], [3;4]);
+     ([1;2;3], [4]);
+     ([1;2;3;4], [])];
   ()
 
 let test_ilist_revo () =

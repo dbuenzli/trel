@@ -271,9 +271,9 @@ type ('q, 'r) reifier
 val reifier : 'q -> 'r -> ('q, 'r) reifier
 (** [reifier q f] reifies the query [q] with reifying function [f]. *)
 
-val var :
+val query :
   ?name:string -> ('a term -> 'q, 'a value -> 'r) reifier -> ('q, 'r) reifier
-(** [var ~name r] introduces a logical query variable in [r]'s query and
+(** [query ~name r] introduces a logical query variable in [r]'s query and
     binds its value in the state reyifing function. [name] can be
     used to name the value. *)
 

@@ -199,7 +199,7 @@ let value_get (var, subst) = match term_value var subst with
 type ('q, 'r) reifier = { next_id : int; query : 'q; reify : state -> 'r }
 
 let reifier query reify = { next_id = 0; query; reify = (fun _ -> reify) }
-let var r =
+let query r =
   let var = var r.next_id in
   let query = r.query var in
   let reify st = r.reify st (var, st.subst) in

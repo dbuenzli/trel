@@ -5,42 +5,46 @@
   ---------------------------------------------------------------------------*)
 
 let assert_vals ?limit q vals =
-  let q = Rel.(var @@ reifier q Value.get) in
+  let q = Rel.(query @@ reifier q Value.get) in
   assert (Rel.(Seq.to_list ?limit @@ run q) = vals)
 
-module Btree = struct
-  type t = Node of int * t * t | Nil
+module Tree = struct
+  type t = Node of int * t * t | Leaf
+
   let rec equal t0 t1 = match t0, t1 with
-  | Nil, Nil -> true
+  | Leaf, Leaf -> true
   | Node (v0,l0,r0), Node (v1,l1,r1) -> v0 = v1 && equal l0 l1 && equal r0 r1
   | _, _ -> false
 
   let rec pp ppf = function
-  | Nil -> Format.fprintf ppf "Nil"
+  | Leaf -> Format.fprintf ppf "Leaf"
   | Node (v, l, r) ->
       Format.fprintf ppf "@[Node @[<1>(%d,@ %a,@ %a)@]" v pp l pp r
 
-  let nil = Nil
+  let leaf = Leaf
   let node v l r = Node (v, l, r)
-
-  let rec fold t f z =
-    let rec loop acc = function
-    | Nil -> z
-    | Node (v, l, r) -> f v
-    in
-    loop z t
 end
 
-let dom_btree = Rel.Dom.of_type (module Btree)
-let lnil = Rel.const dom_btree Btree.nil
-let lnode v l r =
-  let open Rel in
-  pure Btree.node |> app Dom.int v |> app dom_btree l |> app dom_btree r |>
-  ret dom_btree
+module Treeo = struct
 
-let rec linj = function
-| Btree.Nil -> lnil
-| Btree.Node (v, l, r) -> lnode (Rel.int v) (linj l) (linj r)
+  let lt i i' = failwith "TODO"
+
+  let dom = Rel.Dom.of_type (module Tree)
+  let leaf = Rel.const dom Tree.leaf
+  let node v l r =
+    let open Rel in
+    pure Tree.node |> app Dom.int v |> app dom l |> app dom r |> ret dom
+
+  let rec insert v t t' =
+    let open Rel in
+    (t = leaf && t' = node v leaf leaf) ||
+    (Fresh.v4 @@ fun i l r b ->
+     (t = node i l r) &&
+     ((t' = t) && (i = v)) ||
+     ((t' = node i b r) && (lt i v) && delay @@ lazy (insert v l b)) ||
+     ((t' = node i l b) && (lt v i) && delay @@ lazy (insert v r b)))
+end
+
 
 let test () =
   print_endline "All tree tests succeeded!";

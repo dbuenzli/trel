@@ -5,12 +5,12 @@
   ---------------------------------------------------------------------------*)
 
 let assert_vals ?limit q vals =
-  let q = Mka.(var @@ reifier q value_get) in
+  let q = Mka.(query @@ reifier q value_get) in
   assert (Mka.(seq_to_list ?limit @@ run q) = vals)
 
 let assert_2vals ?limit q vals =
   let reify x y = Mka.(value_get x, value_get y) in
-  let q = Mka.(var @@ var @@ reifier q reify) in
+  let q = Mka.(query @@ query @@ reifier q reify) in
   assert (Mka.(seq_to_list ?limit @@ run q) = vals)
 
 let listo d dl =

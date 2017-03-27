@@ -43,7 +43,9 @@ val value_get : 'a value -> 'a
 type ('q, 'r) reifier
 
 val reifier : 'q -> 'r -> ('q, 'r) reifier
-val var : 'a dom -> ('a term -> 'q, 'a value -> 'r) reifier -> ('q, 'r) reifier
+val query :
+  'a dom -> ('a term -> 'q, 'a value -> 'r) reifier -> ('q, 'r) reifier
+
 val run : (goal, 'a) reifier -> 'a seq
 
 (*---------------------------------------------------------------------------

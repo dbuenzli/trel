@@ -5,12 +5,12 @@
   ---------------------------------------------------------------------------*)
 
 let assert_vals ?limit d q vals =
-  let q = Mkv.(var d @@ reifier q value_get) in
+  let q = Mkv.(query d @@ reifier q value_get) in
   assert (Mkv.(seq_to_list ?limit @@ run q) = vals)
 
 let assert_2vals ?limit d0 d1 q vals =
   let reify x y = Mkv.(value_get x, value_get y) in
-  let q = Mkv.(var d1 @@ var d0 @@ reifier q reify) in
+  let q = Mkv.(query d1 @@ query d0 @@ reifier q reify) in
   assert (Mkv.(seq_to_list ?limit @@ run q) = vals)
 
 let listo d dl =
