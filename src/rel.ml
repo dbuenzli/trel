@@ -248,7 +248,7 @@ fun ppf -> function
     match ret with
     | Pure v -> d.Dom.pp ppf v
     | App _ as ret ->
-        Format.fprintf ppf "@[<1>(<func>"; (* FIXME add a name to Ret ? *)
+        Format.fprintf ppf "@[<1>(<fun>"; (* FIXME add a name to Ret ? *)
         pp_ret ppf ret;
         Format.fprintf ppf ")@]";
 

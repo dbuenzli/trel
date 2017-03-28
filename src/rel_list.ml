@@ -49,9 +49,7 @@ module Make (E : EL) = struct
   (* Term constructors *)
 
   let empty = Rel.const dom []
-  let cons x xs =
-    let open Rel in
-    pure (fun x xs -> x :: xs) |> app E.dom x |> app dom xs |> ret dom
+  let cons x xs = Rel.(pure List.cons |> app E.dom x |> app dom xs |> ret dom)
 
   let rec v = function
   | [] -> empty

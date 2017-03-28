@@ -373,7 +373,7 @@ let rec ilist = function [] -> empty | i :: is -> cons (Rel.int i) (ilist is)
   Unify lists:
 {[
 let l x xs = Rel.(cons x xs = ilist [1;2;3]) in
-let ls = Rel.(Seq.to_list @@ run @@ Query.v2 @@ reifier q Value.get2)
+let ls = Rel.(Seq.to_list @@ run @@ Query.v2 @@ reifier l Value.get2)
 let () = assert (ls = [(1;[2;3])]
 ]}
 
