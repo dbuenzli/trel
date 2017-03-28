@@ -145,7 +145,7 @@ fun r0 r1 s -> match r0, r1 with
         | None -> None
         | Some s -> unify_ret f0 f1 s
     end
-| Pure _, Pure _ -> Some s (* must unify by semantics *)
+| Pure f0, Pure f1 when f0 == f1 -> Some s
 | _, _ -> None
 
 (* State *)

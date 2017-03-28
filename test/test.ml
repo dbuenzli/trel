@@ -122,6 +122,13 @@ let test_ilist_revo () =
   assert_vals (fun r -> irevo (ilist [1;2;3]) r) [[3;2;1]];
   ()
 
+let test_pure_unify () =
+  let sin x = Rel.(pure sin |> app Dom.float x |> ret Dom.float) in
+  let cos x = Rel.(pure cos |> app Dom.float x |> ret Dom.float) in
+  assert_vals Rel.(fun x -> cos x = sin x && x = float 0.) [];
+  assert_vals Rel.(fun x -> cos x = cos x && x = float 0.) [0.];
+  ()
+
 let test () =
   test_simple_unify ();
   test_pair ();
@@ -130,6 +137,7 @@ let test () =
   test_ilist_appendo ();
   test_ilist_pre_suf ();
   test_ilist_revo ();
+  test_pure_unify ();
   print_endline "All tests succeeded!";
   ()
 
