@@ -6,7 +6,7 @@ doc: "http://erratique.ch/software/rel/doc"
 license: "ISC"
 dev-repo: "http://erratique.ch/repos/rel.git"
 bug-reports: "https://github.com/dbuenzli/rel/issues"
-tags: []
+tags: [ "logic" "relational" "constraint" "declarative" "org:erratique" ]
 available: [ ocaml-version >= "4.03.0"]
 depends:
 [

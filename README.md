@@ -7,17 +7,16 @@ term language is arbitrarily extensible allowing clients to inject and
 project OCaml values and functions for seamless interaction between
 Rel and regular OCaml programs.
 
-Rel is a typed and type-safe implementation of [μKanren][microKanren].
+Rel is a typed and type-safe implementation of [μKanren][microKanren]
+distributed under the ISC license.
 
 [microKanren]: http://webyrd.net/scheme-2013/papers/HemannMuKanren2013.pdf
-
-Rel is distributed under the ISC license.
 
 Homepage: http://erratique.ch/software/rel
 
 ## Minimal typed μKanren implementation
 
-Consult [`mk.mli`](test/mk.mli) and [`test/mk.ml`](test/mk.ml) and its
+Consult [`mk.mli`](test/mk.mli) and [`mk.ml`](test/mk.ml) and its
 [tests](test/mk_test.ml) for an absolute minimal typed and type-safe
 μKanren in the spirit of the original one.
 
