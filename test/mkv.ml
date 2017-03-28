@@ -90,6 +90,10 @@ module Var = struct
   let compare (V v0) (V v1) = (compare : int -> int -> int) v0.id v1.id
 end
 
+module Vmap = Map.Make (Var)
+
+(* Terms *)
+
 type 'a term =
 | Var of 'a var
 | Ret of 'a dom * 'a ret
@@ -106,7 +110,6 @@ let ret dom ret = Ret (dom, ret)
 
 (* Substitutions *)
 
-module Vmap = Map.Make (Var)
 type binding = B : 'a var * 'a term -> binding
 type subst = binding Vmap.t
 
@@ -152,8 +155,8 @@ fun r0 r1 s -> match r0, r1 with
 
 (* State *)
 
-type state = { next_id : int; subst : subst }
-let state_empty = { next_id = 0; subst = subst_empty }
+type state = { next_vid : int; subst : subst }
+let state_empty = { next_vid = 0; subst = subst_empty }
 
 (* Goals *)
 
@@ -167,8 +170,8 @@ let ( = ) t0 t1 st = match unify t0 t1 st.subst with
 | Some subst -> succeed { st with subst }
 
 let fresh dom lambda st =
-  let var = var dom st.next_id in
-  lambda var { st with next_id = st.next_id + 1 }
+  let var = var dom st.next_vid in
+  lambda var { st with next_vid = st.next_vid + 1 }
 
 let ( || ) g0 g1 st = seq_mplus (g0 st) (g1 st)
 let ( && ) g0 g1 st = seq_bind (g0 st) g1
@@ -198,17 +201,17 @@ let value_get (var, subst) = match term_value var subst with
 | None -> invalid_arg "undefined value"
 | Some v -> v
 
-type ('q, 'r) reifier = { next_id : int; query : 'q; reify : state -> 'r }
+type ('q, 'r) reifier = { next_vid : int; query : 'q; reify : state -> 'r }
 
-let reifier query reify = { next_id = 0; query; reify = (fun _ -> reify) }
+let reifier query reify = { next_vid = 0; query; reify = (fun _ -> reify) }
 let query dom r =
-  let var = var dom r.next_id in
+  let var = var dom r.next_vid in
   let query = r.query var in
   let reify st = r.reify st (var, st.subst) in
-  let next_id = r.next_id + 1 in
-  { next_id; query; reify }
+  let next_vid = r.next_vid + 1 in
+  { next_vid; query; reify }
 
-let run r = seq_map r.reify (r.query { state_empty with next_id = r.next_id })
+let run r = seq_map r.reify (r.query { state_empty with next_vid = r.next_vid })
 
 (*---------------------------------------------------------------------------
    Copyright (c) 2017 Daniel C. Bünzli

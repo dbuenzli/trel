@@ -8,8 +8,12 @@
    domain specification on variables and return values. It seems
    much more inconvenient to have to type fresh and query variables. *)
 
+(* Domains *)
+
 type 'a dom
 val dom : equal:('a -> 'a -> bool) -> 'a dom
+
+(* Terms *)
 
 type 'a term
 type 'a ret

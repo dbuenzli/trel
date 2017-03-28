@@ -331,8 +331,8 @@ fun r0 r1 s -> match r0, r1 with
 
 (* State *)
 
-type state = { next_id : int; subst : Subst.t }
-let empty = { next_id = 0; subst = Subst.empty }
+type state = { next_vid : int; subst : Subst.t }
+let empty = { next_vid = 0; subst = Subst.empty }
 
 (* Goals *)
 
@@ -350,45 +350,45 @@ let ( && ) g0 g1 st = Seq.bind (g0 st) g1
 let delay gazy st = Seq.delay (lazy ((Lazy.force gazy) st))
 
 let fresh lambda st =
-  let var = var st.next_id in
-  lambda var { st with next_id = st.next_id + 1 }
+  let var = var st.next_vid in
+  lambda var { st with next_vid = st.next_vid + 1 }
 
 module Fresh = struct
   let v1 = fresh
   let v2 lambda st =
-    let v1 = var (st.next_id    ) in
-    let v2 = var (st.next_id + 1) in
-    (lambda v1 v2) { st with next_id = st.next_id + 2 }
+    let v1 = var (st.next_vid    ) in
+    let v2 = var (st.next_vid + 1) in
+    (lambda v1 v2) { st with next_vid = st.next_vid + 2 }
 
   let v3 lambda st =
-    let v1 = var (st.next_id    ) in
-    let v2 = var (st.next_id + 1) in
-    let v3 = var (st.next_id + 2) in
-    (lambda v1 v2 v3) { st with next_id = st.next_id + 3 }
+    let v1 = var (st.next_vid    ) in
+    let v2 = var (st.next_vid + 1) in
+    let v3 = var (st.next_vid + 2) in
+    (lambda v1 v2 v3) { st with next_vid = st.next_vid + 3 }
 
   let v4 lambda st =
-    let v1 = var (st.next_id    ) in
-    let v2 = var (st.next_id + 1) in
-    let v3 = var (st.next_id + 2) in
-    let v4 = var (st.next_id + 3) in
-    (lambda v1 v2 v3 v4) { st with next_id = st.next_id + 4 }
+    let v1 = var (st.next_vid    ) in
+    let v2 = var (st.next_vid + 1) in
+    let v3 = var (st.next_vid + 2) in
+    let v4 = var (st.next_vid + 3) in
+    (lambda v1 v2 v3 v4) { st with next_vid = st.next_vid + 4 }
 
   let v5 lambda st =
-    let v1 = var (st.next_id    ) in
-    let v2 = var (st.next_id + 1) in
-    let v3 = var (st.next_id + 2) in
-    let v4 = var (st.next_id + 3) in
-    let v5 = var (st.next_id + 4) in
-    (lambda v1 v2 v3 v4 v5) { st with next_id = st.next_id + 5 }
+    let v1 = var (st.next_vid    ) in
+    let v2 = var (st.next_vid + 1) in
+    let v3 = var (st.next_vid + 2) in
+    let v4 = var (st.next_vid + 3) in
+    let v5 = var (st.next_vid + 4) in
+    (lambda v1 v2 v3 v4 v5) { st with next_vid = st.next_vid + 5 }
 
   let v6 lambda st =
-    let v1 = var (st.next_id    ) in
-    let v2 = var (st.next_id + 1) in
-    let v3 = var (st.next_id + 2) in
-    let v4 = var (st.next_id + 3) in
-    let v5 = var (st.next_id + 4) in
-    let v6 = var (st.next_id + 5) in
-    (lambda v1 v2 v3 v4 v5 v6) { st with next_id = st.next_id + 6 }
+    let v1 = var (st.next_vid    ) in
+    let v2 = var (st.next_vid + 1) in
+    let v3 = var (st.next_vid + 2) in
+    let v4 = var (st.next_vid + 3) in
+    let v5 = var (st.next_vid + 4) in
+    let v6 = var (st.next_vid + 5) in
+    (lambda v1 v2 v3 v4 v5 v6) { st with next_vid = st.next_vid + 6 }
 end
 
 (* Reification *)
@@ -424,81 +424,81 @@ module Value = struct
 end
 
 type 'a value = 'a Value.t
-type ('q, 'r) reifier = { next_id : int; query : 'q; reify : state -> 'r }
+type ('q, 'r) reifier = { next_vid : int; query : 'q; reify : state -> 'r }
 
-let reifier query reify = { next_id = 0; query; reify = (fun _ -> reify) }
+let reifier query reify = { next_vid = 0; query; reify = (fun _ -> reify) }
 let query ?name r =
-  let var = var ?name r.next_id in
-  let next_id = r.next_id + 1 in
+  let var = var ?name r.next_vid in
+  let next_vid = r.next_vid + 1 in
   let query = r.query var in
   let reify st = r.reify st (Value.v var st.subst) in
-  { next_id; query; reify }
+  { next_vid; query; reify }
 
-let run r = Seq.map r.reify (r.query { empty with next_id = r.next_id })
+let run r = Seq.map r.reify (r.query { empty with next_vid = r.next_vid })
 let rec success g = not (Seq.is_empty (g empty))
 
 module Query = struct
   let v1 ?n0 r = query ?name:n0 r
   let v2 ?n0 ?n1 r =
-    let v0 = var ?name:n0 (r.next_id    ) in
-    let v1 = var ?name:n1 (r.next_id + 1) in
-    let next_id = r.next_id + 2 in
+    let v0 = var ?name:n0 (r.next_vid    ) in
+    let v1 = var ?name:n1 (r.next_vid + 1) in
+    let next_vid = r.next_vid + 2 in
     let query = r.query v0 v1 in
     let reify st = r.reify st (Value.v v0 st.subst) (Value.v v1 st.subst) in
-    { next_id; query; reify }
+    { next_vid; query; reify }
 
   let v3 ?n0 ?n1 ?n2 r =
-    let v0 = var ?name:n0 (r.next_id    ) in
-    let v1 = var ?name:n1 (r.next_id + 1) in
-    let v2 = var ?name:n2 (r.next_id + 2) in
-    let next_id = r.next_id + 3 in
+    let v0 = var ?name:n0 (r.next_vid    ) in
+    let v1 = var ?name:n1 (r.next_vid + 1) in
+    let v2 = var ?name:n2 (r.next_vid + 2) in
+    let next_vid = r.next_vid + 3 in
     let query = r.query v0 v1 v2 in
     let reify st = r.reify st
         (Value.v v0 st.subst) (Value.v v1 st.subst) (Value.v v2 st.subst)
     in
-    { next_id; query; reify }
+    { next_vid; query; reify }
 
   let v4 ?n0 ?n1 ?n2 ?n3 r =
-    let v0 = var ?name:n0 (r.next_id    ) in
-    let v1 = var ?name:n1 (r.next_id + 1) in
-    let v2 = var ?name:n2 (r.next_id + 2) in
-    let v3 = var ?name:n3 (r.next_id + 3) in
-    let next_id = r.next_id + 4 in
+    let v0 = var ?name:n0 (r.next_vid    ) in
+    let v1 = var ?name:n1 (r.next_vid + 1) in
+    let v2 = var ?name:n2 (r.next_vid + 2) in
+    let v3 = var ?name:n3 (r.next_vid + 3) in
+    let next_vid = r.next_vid + 4 in
     let query = r.query v0 v1 v2 v3 in
     let reify st = r.reify st
         (Value.v v0 st.subst) (Value.v v1 st.subst) (Value.v v2 st.subst)
         (Value.v v3 st.subst)
     in
-    { next_id; query; reify }
+    { next_vid; query; reify }
 
   let v5 ?n0 ?n1 ?n2 ?n3 ?n4 r =
-    let v0 = var ?name:n0 (r.next_id    ) in
-    let v1 = var ?name:n1 (r.next_id + 1) in
-    let v2 = var ?name:n2 (r.next_id + 2) in
-    let v3 = var ?name:n3 (r.next_id + 3) in
-    let v4 = var ?name:n4 (r.next_id + 4) in
-    let next_id = r.next_id + 5 in
+    let v0 = var ?name:n0 (r.next_vid    ) in
+    let v1 = var ?name:n1 (r.next_vid + 1) in
+    let v2 = var ?name:n2 (r.next_vid + 2) in
+    let v3 = var ?name:n3 (r.next_vid + 3) in
+    let v4 = var ?name:n4 (r.next_vid + 4) in
+    let next_vid = r.next_vid + 5 in
     let query = r.query v0 v1 v2 v3 v4 in
     let reify st = r.reify st
         (Value.v v0 st.subst) (Value.v v1 st.subst) (Value.v v2 st.subst)
         (Value.v v3 st.subst) (Value.v v4 st.subst)
     in
-    { next_id; query; reify }
+    { next_vid; query; reify }
 
   let v6 ?n0 ?n1 ?n2 ?n3 ?n4 ?n5 r =
-    let v0 = var ?name:n0 (r.next_id    ) in
-    let v1 = var ?name:n1 (r.next_id + 1) in
-    let v2 = var ?name:n2 (r.next_id + 2) in
-    let v3 = var ?name:n3 (r.next_id + 3) in
-    let v4 = var ?name:n4 (r.next_id + 4) in
-    let v5 = var ?name:n5 (r.next_id + 5) in
-    let next_id = r.next_id + 6 in
+    let v0 = var ?name:n0 (r.next_vid    ) in
+    let v1 = var ?name:n1 (r.next_vid + 1) in
+    let v2 = var ?name:n2 (r.next_vid + 2) in
+    let v3 = var ?name:n3 (r.next_vid + 3) in
+    let v4 = var ?name:n4 (r.next_vid + 4) in
+    let v5 = var ?name:n5 (r.next_vid + 5) in
+    let next_vid = r.next_vid + 6 in
     let query = r.query v0 v1 v2 v3 v4 v5 in
     let reify st = r.reify st
         (Value.v v0 st.subst) (Value.v v1 st.subst) (Value.v v2 st.subst)
         (Value.v v3 st.subst) (Value.v v4 st.subst) (Value.v v5 st.subst)
     in
-    { next_id; query; reify }
+    { next_vid; query; reify }
 end
 
 

@@ -8,6 +8,6 @@ let () =
   Ok [ Pkg.mllib "src/rel.mllib";
        Pkg.test "test/test";
        Pkg.test "test/test_tree";
-       Pkg.test "test/mka_test";
+       Pkg.test "test/mk_test";
        Pkg.test "test/mkv_test";
        Pkg.test "test/examples"; ]

@@ -133,10 +133,12 @@ val float : float -> float term
 val string : string -> string term
 (** [string s] is [const Dom.string s]. *)
 
-(** {2:fapp Function applications}
+(** {2:fapp Function applications (constructors)}
 
-    Two function applications {{!ret}returning} values in the same
-    domain unify if each of their argument unify. *)
+    Two terms that represent function applications unify if
+    the functions are physically equal, if each of their argument
+    unifies and if the application's return values are in the
+    same domain. *)
 
 type 'a ret
 (** The type for function applications returning values of type ['a]. *)
@@ -358,12 +360,13 @@ let () = assert (xys = [(6, 6); (5, 6)])
 
    {2:func Unifying function applications (constructors)}
 
-   Embbed lists in the term language:
+   Represent lists in the term language:
 {[
 let intl = Rel.Dom.(list int)
 
 let empty = Rel.const intl []
 let cons x xs = Rel.(pure List.cons |> app Dom.int x |> app intl xs |> ret intl)
+
 let rec ilist = function [] -> empty | i :: is -> cons (Rel.int i) (ilist is)
 ]}
 

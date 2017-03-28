@@ -5,46 +5,46 @@
   ---------------------------------------------------------------------------*)
 
 let assert_vals ?limit q vals =
-  let q = Mka.(query @@ reifier q value_get) in
-  assert (Mka.(seq_to_list ?limit @@ run q) = vals)
+  let q = Mk.(query @@ reifier q value_get) in
+  assert (Mk.(seq_to_list ?limit @@ run q) = vals)
 
 let assert_2vals ?limit q vals =
-  let reify x y = Mka.(value_get x, value_get y) in
-  let q = Mka.(query @@ query @@ reifier q reify) in
-  assert (Mka.(seq_to_list ?limit @@ run q) = vals)
+  let reify x y = Mk.(value_get x, value_get y) in
+  let q = Mk.(query @@ query @@ reifier q reify) in
+  assert (Mk.(seq_to_list ?limit @@ run q) = vals)
 
 let listo d dl =
-  let empty = Mka.(const dl []) in
+  let empty = Mk.(const dl []) in
   let cons x xs =
-    Mka.(pure (fun x xs -> x :: xs) |> app d x |> app dl xs |> ret dl)
+    Mk.(pure (fun x xs -> x :: xs) |> app d x |> app dl xs |> ret dl)
   in
-  let list l = List.fold_right (fun x xs -> cons (Mka.const d x) xs) l empty in
+  let list l = List.fold_right (fun x xs -> cons (Mk.const d x) xs) l empty in
   let rec appendo l0 l1 l =
-    let open Mka in
+    let open Mk in
     (l0 = empty && l1 = l) ||
     (fresh @@ fun x -> fresh @@ fun xs -> fresh @@ fun tl ->
-     (cons x xs) = l0 &&
-     (cons x tl) = l  &&
+     cons x xs = l0 &&
+     cons x tl = l  &&
      delay @@ lazy (appendo xs l1 tl))
   in
   let rec revo l r =
-    let open Mka in
+    let open Mk in
     (l = empty && r = empty) ||
     (fresh @@ fun x -> fresh @@ fun xs -> fresh @@ fun rt ->
-     (cons x xs) = l &&
+     cons x xs = l &&
      delay @@ lazy (revo xs rt) &&
      appendo rt (cons x empty) r)
   in
   empty, cons, list, appendo, revo
 
-let dint = Mka.dom ~equal:(( = ) : int -> int -> bool)
-let int = Mka.const dint
+let dint = Mk.dom ~equal:(( = ) : int -> int -> bool)
+let int = Mk.const dint
 
-let dilist = Mka.dom ~equal:( = )
+let dilist = Mk.dom ~equal:( = )
 let iempty, icons, ilist, iappendo, irevo = listo dint dilist
 
 let test_match () =
-  let m4tch x xs = Mka.(icons x xs = ilist [1;2;3]) in
+  let m4tch x xs = Mk.(icons x xs = ilist [1;2;3]) in
   assert_2vals m4tch [(1, [2;3])];
   ()
 
@@ -55,8 +55,8 @@ let test_appendo () =
   ()
 
 let test_pre_suf () =
-  let pre l pre = Mka.(fresh @@ fun suf -> iappendo pre suf l) in
-  let suf l suf = Mka.(fresh @@ fun pre -> iappendo pre suf l) in
+  let pre l pre = Mk.(fresh @@ fun suf -> iappendo pre suf l) in
+  let suf l suf = Mk.(fresh @@ fun pre -> iappendo pre suf l) in
   let pre_suf l pre suf = iappendo pre suf l in
   let l = ilist [1;2;3;4] in
   assert_vals (pre l) [[]; [1]; [1;2]; [1;2;3]; [1;2;3;4]];
@@ -78,7 +78,7 @@ let test () =
   test_appendo ();
   test_pre_suf ();
   test_revo ();
-  print_endline "All Mka tests succeeded!";
+  print_endline "All Mk tests succeeded!";
   ()
 
 let () = test ()

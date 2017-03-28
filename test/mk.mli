@@ -4,11 +4,14 @@
    %%NAME%% %%VERSION%%
   ---------------------------------------------------------------------------*)
 
-(* Straightforward minimal typed implementation of μKanren with
-   domain specification on applications and return values. *)
+(* Straightforward implementation of typed μKanren. *)
+
+(* Domains *)
 
 type 'a dom
 val dom : equal:('a -> 'a -> bool) -> 'a dom
+
+(* Terms *)
 
 type 'a term
 type 'a ret

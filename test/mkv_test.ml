@@ -23,15 +23,15 @@ let listo d dl =
     let open Mkv in
     (l0 = empty && l1 = l) ||
     (fresh d @@ fun x -> fresh dl @@ fun xs -> fresh dl @@ fun tl ->
-     (cons x xs) = l0 &&
-     (cons x tl) = l  &&
+     cons x xs = l0 &&
+     cons x tl = l  &&
      delay @@ lazy (appendo xs l1 tl))
   in
   let rec revo l r =
     let open Mkv in
     (l = empty && r = empty) ||
     (fresh d @@ fun x -> fresh dl @@ fun xs -> fresh dl @@ fun rt ->
-     (cons x xs) = l &&
+     cons x xs = l &&
      delay @@ lazy (revo xs rt) &&
      appendo rt (cons x empty) r)
   in
