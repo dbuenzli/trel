@@ -3,8 +3,9 @@ Rel — Relational programming for OCaml
 %%VERSION%%
 
 Rel is a typed relational programming language embedded in OCaml. Its
-term language is fully extensible and allows the client to inject and
-project OCaml types and functions to/from it.
+term language is arbitrarily extensible allowing clients to inject and
+project OCaml values and functions for seamless interaction between
+Rel and regular OCaml programs.
 
 Rel is a typed and type-safe implementation of [μKanren][microKanren].
 
@@ -21,8 +22,8 @@ Consult [`mk.mli`](test/mk.mli) and [`test/mk.ml`](test/mk.ml) and its
 μKanren in the spirit of the original one.
 
 The implementation shows how to define an arbitrarily extensible typed
-term language and an API for typed reification. This is the core on
-which `Rel` adds a bit of convenience.
+term language and a simple API for typed reification of states. This
+is the core on which `Rel` adds a bit of convenience.
 
 Other OCaml implementations of {mini,μ}Kanren are listed on the 
 [miniKanren website](http://minikanren.org/).
