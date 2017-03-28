@@ -9,4 +9,5 @@ let () =
        Pkg.test "test/test";
        Pkg.test "test/test_tree";
        Pkg.test "test/mka_test";
-       Pkg.test "test/mkv_test"; ]
+       Pkg.test "test/mkv_test";
+       Pkg.test "test/examples"; ]

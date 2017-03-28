@@ -414,6 +414,13 @@ module Value = struct
       match ret_value ret subst with
       | Some v -> d.Dom.pp ppf v
       | None -> pp_ret ppf ret
+
+  let get1 x = get x
+  let get2 x y = get x, get y
+  let get3 x y z = get x, get y, get z
+  let get4 x y z r = get x, get y, get z, get r
+  let get5 x y z r s = get x, get y, get z, get r, get s
+  let get6 x y z r s t = get x, get y, get z, get r, get s, get t
 end
 
 type 'a value = 'a Value.t

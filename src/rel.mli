@@ -8,6 +8,8 @@
 
     [Rel] is a typed, relational, programming language embedded in OCaml.
 
+    See the {{!basics}basics}.
+
     {b References.}
     {ul
     {- Jason Hemann and Daniel P. Friedman.
@@ -17,7 +19,7 @@
 
     {e %%VERSION%% — {{:%%PKG_HOMEPAGE%% }homepage}} *)
 
-(** {1 Domains} *)
+(** {1:doms Domains} *)
 
 type 'a dom
 (** The type for domains of values of type ['a]. *)
@@ -101,7 +103,7 @@ module Dom : sig
   (** [list el] is a domain for lists of type ['a]. *)
 end
 
-(** {1 Terms} *)
+(** {1:terms Terms} *)
 
 type 'a term
 (** The type for terms denoting values of type ['a]. *)
@@ -109,7 +111,7 @@ type 'a term
 val pp_term : Format.formatter -> 'a term -> unit
 (** [pp_term ppf t] prints an unspecified representation of [t] on [ppf]. *)
 
-(** {2 Constants} *)
+(** {2:csts Constants} *)
 
 val const : 'a dom -> 'a -> 'a term
 (** [const dom v] is a term for the constant [v] in domain [dom]. Two
@@ -262,6 +264,19 @@ module Value : sig
   (** [pp ppf v] prints, if it exists, [v]'s value using the value's domain
       {{!Dom.pp_value}pretty-printer}. Otherwise it prints [v]'s {{!term}
       defining term}. *)
+
+  (** {1 Multiple values as tuples} *)
+
+  val get1 : 'a value -> 'a
+  val get2 : 'a value -> 'b value -> 'a * 'b
+  val get3 : 'a value -> 'b value -> 'c value -> 'a * 'b * 'c
+  val get4 : 'a value -> 'b value -> 'c value -> 'd value -> 'a * 'b * 'c * 'd
+  val get5 :
+    'a value -> 'b value -> 'c value -> 'd value -> 'e value ->
+    'a * 'b * 'c * 'd * 'e
+  val get6 :
+    'a value -> 'b value -> 'c value -> 'd value -> 'e value -> 'f value ->
+    'a * 'b * 'c * 'd * 'e * 'f
 end
 
 type ('q, 'r) reifier
@@ -323,6 +338,65 @@ val run : (goal, 'r) reifier -> 'r Seq.t
 
 val success : goal -> bool
 (** [success g] is [true] iff [g] succeeds on the empty state. *)
+
+(** {1:basics Basics}
+
+    Fixme explain terms, goals, unification, recursion through delay and
+    reification.
+
+{[
+let q x = Rel.(x = int 5)
+let xs = Rel.(Seq.to_list @@ run @@ Query.v1 @@ reifier q Value.get1)
+let () = assert (xs = [5])
+]}
+
+{[
+let q x y = Rel.(y = int 6 && (x = y || x = int 5))
+let xys = Rel.(Seq.to_list @@ run @@ Query.v2 @@ reifier q Value.get2)
+let () = assert (xys = [(6, 6); (5, 6)])
+]}
+
+   {2:func Unifying function applications (constructors)}
+
+   Embbed lists in the term language:
+{[
+let intl = Rel.Dom.(list int)
+
+let empty = Rel.const intl []
+let cons x xs = Rel.(pure List.cons |> app Dom.int x |> app intl xs |> ret intl)
+let rec ilist = function [] -> empty | i :: is -> cons (Rel.int i) (ilist is)
+]}
+
+  Unify lists:
+{[
+let l x xs = Rel.(cons x xs = ilist [1;2;3]) in
+let ls = Rel.(Seq.to_list @@ run @@ Query.v2 @@ reifier q Value.get2)
+let () = assert (ls = [(1;[2;3])]
+]}
+
+  Relational append. Express a predicate [appendo l0 l1 l] that asserts
+  [l] is the concatenation of [l1] to [l0].
+{[
+let rec appendo l0 l1 l =
+  let open Rel in
+  (l0 = empty && l1 = l) ||
+  (Fresh.v3 @@ fun x xs tl ->
+   cons x xs = l0 &&
+   cons x tl = l  &&
+   delay @@ lazy (appendo xs l1 tl))
+]}
+
+  Find all lists that appended together give the list [[1;2;3]]:
+{[
+let q l0 l1 = appendo l0 l1 (ilist [1;2;3])
+let l01s = Rel.(Seq.to_list @@ run @@ Query.v2 @@ reifier q Value.get2)
+let () = assert (l01s =
+    [([], [1;2;3]);
+     ([1],  [2;3]);
+     ([1;2],  [3]);
+     ([1;2;3], [])])
+]}
+*)
 
 (*---------------------------------------------------------------------------
    Copyright (c) 2017 Daniel C. Bünzli

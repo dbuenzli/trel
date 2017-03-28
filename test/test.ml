@@ -9,8 +9,7 @@ let assert_vals ?limit q vals =
   assert (Rel.(Seq.to_list ?limit @@ run q) = vals)
 
 let assert_2vals ?limit q vals =
-  let reify x y = Rel.Value.(get x, get y) in
-  let q = Rel.(Query.v2 @@ reifier q reify) in
+  let q = Rel.(Query.v2 @@ reifier q Value.get2) in
   assert (Rel.(Seq.to_list ?limit @@ run q) = vals)
 
 let test_simple_unify () =
