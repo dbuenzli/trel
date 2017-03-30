@@ -4,7 +4,7 @@
    %%NAME%% %%VERSION%%
   ---------------------------------------------------------------------------*)
 
-let strf = Format.asprintf
+let strf = Fmt.strf
 
 (* Lazy sequences of values. *)
 
@@ -116,7 +116,7 @@ module Dom = struct
       equal : 'a -> 'a -> bool;
       pp : Format.formatter -> 'a -> unit }
 
-  let pp_abstr ppf _ = Format.fprintf ppf "<abstr>"
+  let pp_abstr ppf _ = Fmt.pf ppf "<abstr>"
 
   let v ?(name = "unknown") ?(pp = pp_abstr) ?(equal = ( = )) () =
     let tid = tid () in
@@ -145,49 +145,35 @@ module Dom = struct
   | None -> false
   | Some Teq -> true
 
-  let pp ppf d = Format.pp_print_string ppf d.name
+  let pp ppf d = Fmt.string ppf d.name
 
   (* Predefined domains *)
 
   let unit =
-    let equal = (( = ) : unit -> unit -> bool) in
-    let pp ppf v = Format.fprintf ppf "()" in
-    v ~name:"unit" ~pp ~equal ()
+    let pp ppf () = Fmt.pf ppf "()" in
+    v ~name:"unit" ~pp ~equal:(( = ) : unit -> unit -> bool) ()
 
   let bool =
-    let equal = (( = ) : bool -> bool -> bool) in
-    let pp = Format.pp_print_bool in
-    v ~name:"bool" ~pp ~equal ()
+    v ~name:"bool" ~pp:Fmt.bool ~equal:(( = ) : bool -> bool -> bool) ()
 
   let int =
-    let equal = (( = ) : int -> int -> bool) in
-    let pp = Format.pp_print_int in
-    v ~name:"int" ~pp ~equal ()
+    v ~name:"int" ~pp:Fmt.int ~equal:(( = ) : int -> int -> bool) ()
 
   let float =
-    let equal = (( = ) : float -> float -> bool) in
-    let pp = Format.pp_print_float in
-    v ~name:"float" ~pp ~equal ()
+    v ~name:"float" ~pp:Fmt.float ~equal:(( = ) : float -> float -> bool) ()
 
   let string =
-    let equal = (( = ) : string -> string -> bool) in
-    let pp = Format.pp_print_string in
-    v ~name:"string" ~pp ~equal ()
+    v ~name:"string" ~pp:Fmt.string ~equal:(( = ) : string -> string -> bool) ()
 
   let pair f s =
-    let equal (f0, s0) (f1, s1) = f.equal f0 f1 && s.equal s0 s1 in
-    let pp ppf (fv, sv) =
-      Format.fprintf ppf "@[<1>(%a,@, %a)@]" f.pp fv s.pp sv
-    in
     let name = strf "%s * %s" f.name s.name in
+    let pp = Fmt.Dump.pair f.pp s.pp in
+    let equal (f0, s0) (f1, s1) = f.equal f0 f1 && s.equal s0 s1 in
     v ~name ~pp ~equal ()
 
   let list e =
     let equal l0 l1 = List.for_all2 e.equal l0 l1 in
-    let pp ppf l =
-      let pp_sep ppf () = Format.fprintf ppf ";@ " in
-      Format.fprintf ppf "@[<1>[%a]@]" (Format.pp_print_list ~pp_sep e.pp) l
-    in
+    let pp = Fmt.Dump.list e.pp in
     let name = match String.contains e.name ' ' with
     | true -> strf "(%s) list" e.name
     | false -> strf "%s list" e.name
@@ -237,8 +223,8 @@ let pair fdom sdom tdom =
   fun fst snd -> pure pair |> app fdom fst |> app sdom snd |> ret tdom
 
 let pp_var ppf v = match v.name with
-| Some n -> Format.fprintf ppf "%s" n
-| None -> Format.fprintf ppf "_%d" v.id
+| Some n -> Fmt.pf ppf "%s" n
+| None -> Fmt.pf ppf "_%d" v.id
 
 let rec pp_term : type a. Format.formatter -> a term -> unit =
 (* FIXME not T.R. *)
@@ -248,14 +234,14 @@ fun ppf -> function
     match ret with
     | Pure v -> d.Dom.pp ppf v
     | App _ as ret ->
-        Format.fprintf ppf "@[<1>(<fun>"; (* FIXME add a name to Ret ? *)
+        Fmt.pf ppf "@[<1>(<fun>"; (* FIXME add a name to Ret ? *)
         pp_ret ppf ret;
-        Format.fprintf ppf ")@]";
+        Fmt.pf ppf ")@]";
 
 and pp_ret : type a. Format.formatter -> a ret -> unit =
 fun ppf -> function
 | Pure _ -> ()
-| App (f, d, v) -> Format.fprintf ppf "@ %a" pp_term v; pp_ret ppf f
+| App (f, d, v) -> Fmt.pf ppf "@ %a" pp_term v; pp_ret ppf f
 
 (* Substitutions *)
 
@@ -399,7 +385,7 @@ module Value = struct
   let v var subst = (var, subst)
 
   let name (var, _) = match var with
-  | Var v -> Format.asprintf "%a" pp_var v | _ -> assert false
+  | Var v -> strf "%a" pp_var v | _ -> assert false
 
   let find (var, subst) = term_value var subst
   let get (var, subst) = match term_value var subst with

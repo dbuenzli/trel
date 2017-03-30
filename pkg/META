@@ -1,5 +1,6 @@
-description = "Relational programming for OCaml"
 version = "%%VERSION_NUM%%"
+description = "Relational programming for OCaml"
+requires = "fmt"
 archive(byte) = "rel.cma"
 archive(native) = "rel.cmxa"
 plugin(byte) = "rel.cma"

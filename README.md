@@ -8,9 +8,10 @@ project OCaml values and functions for seamless interaction between
 Rel and regular OCaml programs.
 
 Rel is a typed and type-safe implementation of [μKanren][microKanren]
-distributed under the ISC license.
+distributed under the ISC license. It depends on [fmt][fmt].
 
 [microKanren]: http://webyrd.net/scheme-2013/papers/HemannMuKanren2013.pdf
+[fmt]: http:/erratique.ch/software/fmt
 
 Homepage: http://erratique.ch/software/rel
 
