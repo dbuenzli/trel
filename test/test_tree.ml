@@ -4,9 +4,7 @@
    %%NAME%% %%VERSION%%
   ---------------------------------------------------------------------------*)
 
-let assert_vals ?limit q vals =
-  let q = Rel.(query @@ reifier q Value.get) in
-  assert (Rel.(Seq.to_list ?limit @@ run q) = vals)
+let assert_vals ?limit q vals = assert (Rel.Run.get1 ?limit q = vals)
 
 module Tree = struct
   type t = Node of int * t * t | Leaf

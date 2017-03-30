@@ -4,13 +4,8 @@
    %%NAME%% %%VERSION%%
   ---------------------------------------------------------------------------*)
 
-let assert_vals ?limit q vals =
-  let q = Rel.(query @@ reifier q Value.get) in
-  assert (Rel.(Seq.to_list ?limit @@ run q) = vals)
-
-let assert_2vals ?limit q vals =
-  let q = Rel.(Query.v2 @@ reifier q Value.get2) in
-  assert (Rel.(Seq.to_list ?limit @@ run q) = vals)
+let assert_vals ?limit q vals = assert (Rel.Run.get1 ?limit q = vals)
+let assert_2vals ?limit q vals = assert (Rel.Run.get2 ?limit q = vals)
 
 let test_simple_unify () =
   assert_vals (fun q -> Rel.(q = int 5)) [5];

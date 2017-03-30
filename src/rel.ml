@@ -258,6 +258,8 @@ module Subst = struct
       let B (v', t) = Vmap.find (Var.V v) s in
       match teq v.tid v'.tid with None -> None | Some Teq -> Some t
     with Not_found -> None
+
+  let iter_bindings f = Vmap.iter (fun _ v -> f v)
 end
 
 let rec _term_value : type a. a term -> Subst.t -> a =
@@ -283,6 +285,28 @@ fun t s -> match t with
     match Subst.find v s with
     | Some t -> term_ret t s
     | None -> None
+
+let pp_var_value pp_value v ppf var =
+  Fmt.pf ppf "@[<1>(%a@ = %a)@]" pp_var var pp_value v
+
+let pp_binding ppf (Subst.B (var, term)) =
+  pp_var_value pp_term term ppf var
+
+let pp_binding_value subst ppf (Subst.B (var, term) as b) =
+  match term_ret term subst with
+  | None -> pp_binding ppf b
+  | Some (d, ret) ->
+      match ret_value ret subst with
+      | Some v -> pp_var_value d.Dom.pp v ppf var
+      | None -> pp_var_value pp_ret ret ppf var
+
+let pp_subst ppf subst =
+  Fmt.pf ppf "@[<1>(%a)@]"
+    (Fmt.iter ~sep:Fmt.sp Subst.iter_bindings pp_binding) subst
+
+let pp_subst_values ppf subst =
+  Fmt.pf ppf "@[<1>(%a)@]"
+    (Fmt.iter ~sep:Fmt.sp Subst.iter_bindings (pp_binding_value subst)) subst
 
 (* Unification *)
 
@@ -319,6 +343,8 @@ fun r0 r1 s -> match r0, r1 with
 
 type state = { next_vid : int; subst : Subst.t }
 let empty = { next_vid = 0; subst = Subst.empty }
+
+let pp_state ppf st = pp_subst_values ppf st.subst
 
 (* Goals *)
 
@@ -407,6 +433,12 @@ module Value = struct
   let get4 x y z r = get x, get y, get z, get r
   let get5 x y z r s = get x, get y, get z, get r, get s
   let get6 x y z r s t = get x, get y, get z, get r, get s, get t
+  let find1 x = find x
+  let find2 x y = find x, find y
+  let find3 x y z = find x, find y, find z
+  let find4 x y z r = find x, find y, find z, find r
+  let find5 x y z r s = find x, find y, find z, find r, find s
+  let find6 x y z r s t = find x, find y, find z, find r, find s, find t
 end
 
 type 'a value = 'a Value.t
@@ -420,7 +452,8 @@ let query ?name r =
   let reify st = r.reify st (Value.v var st.subst) in
   { next_vid; query; reify }
 
-let run r = Seq.map r.reify (r.query { empty with next_vid = r.next_vid })
+let _run r = r.query { empty with next_vid = r.next_vid }
+let run r = Seq.map r.reify (_run r)
 let rec success g = not (Seq.is_empty (g empty))
 
 module Query = struct
@@ -487,7 +520,62 @@ module Query = struct
     { next_vid; query; reify }
 end
 
+module Reifier = struct
 
+  let get1 ?n0 q = Query.v1 ?n0 (reifier q Value.get1)
+  let get2 ?n0 ?n1 q = Query.v2 ?n0 ?n1 (reifier q Value.get2)
+  let get3 ?n0 ?n1 ?n2 q = Query.v3 ?n0 ?n1 ?n2 (reifier q Value.get3)
+  let get4 ?n0 ?n1 ?n2 ?n3 q = Query.v4 ?n0 ?n1 ?n2 ?n3 (reifier q Value.get4)
+  let get5 ?n0 ?n1 ?n2 ?n3 ?n4 q =
+    Query.v5 ?n0 ?n1 ?n2 ?n3 ?n4 (reifier q Value.get5)
+
+  let get6 ?n0 ?n1 ?n2 ?n3 ?n4 ?n5 q =
+    Query.v6 ?n0 ?n1 ?n2 ?n3 ?n4 ?n5 (reifier q Value.get6)
+
+  let find1 ?n0 q = Query.v1 ?n0 (reifier q Value.find1)
+  let find2 ?n0 ?n1 q = Query.v2 ?n0 ?n1 (reifier q Value.find2)
+  let find3 ?n0 ?n1 ?n2 q = Query.v3 ?n0 ?n1 ?n2 (reifier q Value.find3)
+  let find4 ?n0 ?n1 ?n2 ?n3 q = Query.v4 ?n0 ?n1 ?n2 ?n3 (reifier q Value.find4)
+  let find5 ?n0 ?n1 ?n2 ?n3 ?n4 q =
+    Query.v5 ?n0 ?n1 ?n2 ?n3 ?n4 (reifier q Value.find5)
+
+  let find6 ?n0 ?n1 ?n2 ?n3 ?n4 ?n5 q =
+    Query.v6 ?n0 ?n1 ?n2 ?n3 ?n4 ?n5 (reifier q Value.find6)
+end
+
+module Run = struct
+  let get1 ?limit q = Seq.to_list ?limit @@ run (Reifier.get1 q)
+  let get2 ?limit q = Seq.to_list ?limit @@ run (Reifier.get2 q)
+  let get3 ?limit q = Seq.to_list ?limit @@ run (Reifier.get3 q)
+  let get4 ?limit q = Seq.to_list ?limit @@ run (Reifier.get4 q)
+  let get5 ?limit q = Seq.to_list ?limit @@ run (Reifier.get5 q)
+  let get6 ?limit q = Seq.to_list ?limit @@ run (Reifier.get6 q)
+  let find1 ?limit q = Seq.to_list ?limit @@ run (Reifier.find1 q)
+  let find2 ?limit q = Seq.to_list ?limit @@ run (Reifier.find2 q)
+  let find3 ?limit q = Seq.to_list ?limit @@ run (Reifier.find3 q)
+  let find4 ?limit q = Seq.to_list ?limit @@ run (Reifier.find4 q)
+  let find5 ?limit q = Seq.to_list ?limit @@ run (Reifier.find5 q)
+  let find6 ?limit q = Seq.to_list ?limit @@ run (Reifier.find6 q)
+end
+
+(* State introspection *)
+
+let states r = _run r
+let inspect ?limit r = Seq.to_list ?limit (states r)
+
+module Inspect = struct
+  let v1 ?limit ?n0 q = inspect ?limit (Reifier.find1 ?n0 q)
+  let v2 ?limit ?n0 ?n1 q = inspect ?limit (Reifier.find2 ?n0 ?n1 q)
+  let v3 ?limit ?n0 ?n1 ?n2 q = inspect ?limit (Reifier.find3 ?n0 ?n1 ?n2 q)
+  let v4 ?limit ?n0 ?n1 ?n2 ?n3 q =
+    inspect ?limit (Reifier.find4 ?n0 ?n1 ?n2 ?n3 q)
+
+  let v5 ?limit ?n0 ?n1 ?n2 ?n3 ?n4 q =
+    inspect ?limit (Reifier.find5 ?n0 ?n1 ?n2 ?n3 ?n4 q)
+
+  let v6 ?limit ?n0 ?n1 ?n2 ?n3 ?n4 ?n5 q =
+    inspect ?limit (Reifier.find6 ?n0 ?n1 ?n2 ?n3 ?n4 ?n5 q)
+end
 
 (*---------------------------------------------------------------------------
    Copyright (c) 2017 Daniel C. Bünzli

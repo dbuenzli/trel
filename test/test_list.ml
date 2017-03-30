@@ -4,14 +4,7 @@
    %%NAME%% %%VERSION%%
   ---------------------------------------------------------------------------*)
 
-let assert_vals ?limit q vals =
-  let q = Rel.(query @@ reifier q Value.get) in
-  assert (Rel.(Seq.to_list ?limit @@ run q) = vals)
-
-let query ?limit q =
-  let q = Rel.(query @@ reifier q Value.get) in
-  Rel.(Seq.to_list ?limit @@ run q)
-
+let assert_vals ?limit q vals = assert (Rel.Run.get1 ?limit q = vals)
 
 module L = Rel_list.Make (struct type t = int let dom = Rel.Dom.int end)
 

@@ -269,7 +269,7 @@ module Value : sig
       {{!Dom.pp_value}pretty-printer}. Otherwise it prints [v]'s {{!term}
       defining term}. *)
 
-  (** {1 Multiple values as tuples} *)
+  (** {1:gets Multiple value [get]s as tuples} *)
 
   val get1 : 'a value -> 'a
   val get2 : 'a value -> 'b value -> 'a * 'b
@@ -281,6 +281,25 @@ module Value : sig
   val get6 :
     'a value -> 'b value -> 'c value -> 'd value -> 'e value -> 'f value ->
     'a * 'b * 'c * 'd * 'e * 'f
+
+  (** {1:finds Multiple value [find]s as tuples} *)
+
+  val find1 : 'a value -> 'a option
+  val find2 : 'a value -> 'b value -> 'a option * 'b option
+  val find3 :
+    'a value -> 'b value -> 'c value -> 'a option * 'b option * 'c option
+
+  val find4 :
+    'a value -> 'b value -> 'c value -> 'd value ->
+    'a option * 'b option * 'c option * 'd option
+
+  val find5 :
+    'a value -> 'b value -> 'c value -> 'd value -> 'e value ->
+    'a option * 'b option * 'c option * 'd option * 'e option
+
+  val find6 :
+    'a value -> 'b value -> 'c value -> 'd value -> 'e value -> 'f value ->
+    'a option * 'b option * 'c option * 'd option * 'e option * 'f option
 end
 
 type ('q, 'r) reifier
@@ -334,14 +353,218 @@ module Query : sig
       reifier -> ('q, 'r) reifier
 end
 
+(** Quick reification.
+
+    A few functions that precompose {!Query} and {!Value} functions
+    into reifiers. *)
+module Reifier : sig
+
+  (** {1:gets {!Value.get} reifiers} *)
+
+  val get1 : ?n0:string -> ('a term -> goal) -> (goal, 'a) reifier
+  (** [get1 ?n0 q] is [Query.v1 ?n0 (reifier q Value.get1)] *)
+
+  val get2 :
+    ?n0:string -> ?n1:string -> ('a term -> 'b term -> goal) ->
+    (goal, 'a * 'b) reifier
+  (** See {!get1}. *)
+
+  val get3 :
+    ?n0:string -> ?n1:string -> ?n2:string ->
+    ('a term -> 'b term -> 'c term -> goal) -> (goal, 'a * 'b * 'c) reifier
+  (** See {!get1}. *)
+
+  val get4 :
+    ?n0:string -> ?n1:string -> ?n2:string -> ?n3:string ->
+    ('a term -> 'b term -> 'c term -> 'd term -> goal) ->
+    (goal, 'a * 'b * 'c * 'd) reifier
+  (** See {!get1}. *)
+
+  val get5 :
+    ?n0:string -> ?n1:string -> ?n2:string -> ?n3:string -> ?n4:string ->
+    ('a term -> 'b term -> 'c term -> 'd term -> 'e term -> goal) ->
+    (goal, 'a * 'b * 'c * 'd * 'e) reifier
+  (** See {!get1}. *)
+
+  val get6 :
+    ?n0:string -> ?n1:string -> ?n2:string -> ?n3:string -> ?n4:string ->
+    ?n5:string ->
+    ('a term -> 'b term -> 'c term -> 'd term -> 'e term -> 'f term -> goal) ->
+    (goal, 'a * 'b * 'c * 'd * 'e * 'f) reifier
+  (** See {!get1}. *)
+
+  (** {1:finds {!Value.find} reifiers} *)
+
+  val find1 : ?n0:string -> ('a term -> goal) -> (goal, 'a option) reifier
+  (** [find1 ?n0 q] is [Query.v1 ?n0 (reifier q Value.find1)] *)
+
+  val find2 :
+    ?n0:string -> ?n1:string -> ('a term -> 'b term -> goal) ->
+    (goal, 'a option * 'b option) reifier
+  (** See {!find1}. *)
+
+  val find3 :
+    ?n0:string -> ?n1:string -> ?n2:string ->
+    ('a term -> 'b term -> 'c term -> goal) ->
+    (goal, 'a option * 'b option * 'c option) reifier
+  (** See {!find1}. *)
+
+  val find4 :
+    ?n0:string -> ?n1:string -> ?n2:string -> ?n3:string ->
+    ('a term -> 'b term -> 'c term -> 'd term -> goal) ->
+    (goal, 'a option * 'b option * 'c option * 'd option) reifier
+  (** See {!find1}. *)
+
+  val find5 :
+    ?n0:string -> ?n1:string -> ?n2:string -> ?n3:string -> ?n4:string ->
+    ('a term -> 'b term -> 'c term -> 'd term -> 'e term -> goal) ->
+    (goal, 'a option * 'b option * 'c option * 'd option * 'e option) reifier
+  (** See {!find1}. *)
+
+  val find6 :
+    ?n0:string -> ?n1:string -> ?n2:string -> ?n3:string -> ?n4:string ->
+    ?n5:string ->
+    ('a term -> 'b term -> 'c term -> 'd term -> 'e term -> 'f term -> goal) ->
+    (goal,
+     'a option * 'b option * 'c option * 'd option * 'e option * 'f option)
+      reifier
+  (** See {!find1}. *)
+end
 
 val run : (goal, 'r) reifier -> 'r Seq.t
 (** [run r] is the sequence of states reified by [r]'s reifying
     function and obtained by running [r]'s query on the empty
     state. *)
 
+(** Quick runs.
+
+    A few convenience functions for running queries to lists. *)
+module Run : sig
+
+  (** {1:gets {!Value.get} reifications} *)
+
+  val get1 : ?limit:int -> ('a term -> goal) -> 'a list
+  (** [get1 ?limit q] is [Seq.to_list ?limit @@ run (Reifier.get1 q)]. *)
+
+  val get2 : ?limit:int -> ('a term -> 'b term -> goal) -> ('a * 'b) list
+  (** See {!get1}. *)
+
+  val get3 :
+    ?limit:int -> ('a term -> 'b term -> 'c term -> goal) -> ('a * 'b * 'c) list
+  (** See {!get1}. *)
+
+  val get4 :
+    ?limit:int -> ('a term -> 'b term -> 'c term -> 'd term -> goal) ->
+    ('a * 'b * 'c * 'd) list
+  (** See {!get1}. *)
+
+  val get5 :
+    ?limit:int ->
+    ('a term -> 'b term -> 'c term -> 'd term -> 'e term -> goal) ->
+    ('a * 'b * 'c * 'd * 'e) list
+  (** See {!get1}. *)
+
+  val get6 :
+    ?limit:int ->
+    ('a term -> 'b term -> 'c term -> 'd term -> 'e term -> 'f term -> goal) ->
+    ('a * 'b * 'c * 'd * 'e * 'f) list
+  (** See {!get1}. *)
+
+  (** {1:finds {!Value.find} reifications} *)
+
+  val find1 : ?limit:int -> ('a term -> goal) -> 'a option list
+  (** [find1 ?limit q] is [Seq.to_list ?limit @@ run (Reifier.find1 q)] *)
+
+  val find2 :
+    ?limit:int -> ('a term -> 'b term -> goal) -> ('a option * 'b option) list
+  (** See {!find1}. *)
+
+  val find3 :
+    ?limit:int -> ('a term -> 'b term -> 'c term -> goal) ->
+    ('a option * 'b option * 'c option) list
+  (** See {!find1}. *)
+
+  val find4 :
+    ?limit:int ->
+    ('a term -> 'b term -> 'c term -> 'd term -> goal) ->
+    ('a option * 'b option * 'c option * 'd option) list
+  (** See {!find1}. *)
+
+  val find5 :
+    ?limit:int ->
+    ('a term -> 'b term -> 'c term -> 'd term -> 'e term -> goal) ->
+    ('a option * 'b option * 'c option * 'd option * 'e option) list
+  (** See {!find1}. *)
+
+  val find6 :
+    ?limit:int ->
+    ('a term -> 'b term -> 'c term -> 'd term -> 'e term -> 'f term -> goal) ->
+    ('a option * 'b option * 'c option * 'd option * 'e option * 'f option) list
+  (** See {!find1}. *)
+end
+
 val success : goal -> bool
 (** [success g] is [true] iff [g] succeeds on the empty state. *)
+
+(** {1:state State introspection} *)
+
+type state
+(** The type for states. *)
+
+val pp_state : Format.formatter -> state -> unit
+(** [pp_state ppf st] prints an unspecified representation of [st] on
+    [ppf]. *)
+
+val states : (goal, 'r) reifier -> state Seq.t
+(** [states r] is like {!run} but returns the sequence of unreified
+    states. *)
+
+val inspect : ?limit:int -> (goal, 'r) reifier -> state list
+(** [inspect ~limit r] is [Seq.to_list ~limit (states r)]. *)
+
+(** Quick inspection
+
+    A few functions that inspect states using precomposed
+    {{!Reifier.finds}find reifiers}. *)
+module Inspect : sig
+
+  (** {1 Inspection} *)
+
+  val v1 : ?limit:int -> ?n0:string -> ('a term -> goal) -> state list
+  (** [v1 ?limit ?n0 q] is [inspect ?limit (Reifier.find1 ?n0 q)] *)
+
+  val v2 :
+    ?limit:int -> ?n0:string -> ?n1:string -> ('a term -> 'b term -> goal) ->
+    state list
+  (** [v2 ?limit ?n0 ?n1 q] is [inspect ?limit (Reifier.find2 ?n0 ?n1 q)] *)
+
+  val v3 :
+    ?limit:int -> ?n0:string -> ?n1:string -> ?n2:string ->
+    ('a term -> 'b term -> 'c term -> goal) -> state list
+  (** [v3 ?limit ?n0 ?n1 ?n2 q] is
+      [inspect ?limit (Reifier.find3 ?n0 ?n1 ?n2 q)]. *)
+
+  val v4 :
+    ?limit:int -> ?n0:string -> ?n1:string -> ?n2:string -> ?n3:string ->
+    ('a term -> 'b term -> 'c term -> 'd term -> goal) -> state list
+  (** [v4 ?limit ?n0 ?n1 ?n2 ?n3 q] is
+      [inspect ?limit (Reifier.find4 ?n0 ?n1 ?n2 ?n3 q)]. *)
+
+  val v5 :
+    ?limit:int -> ?n0:string -> ?n1:string -> ?n2:string -> ?n3:string ->
+    ?n4:string ->
+    ('a term -> 'b term -> 'c term -> 'd term -> 'e term -> goal) -> state list
+  (** [v5 ?limit ?n0 ?n1 ?n2 ?n3 ?n4 q] is
+      [inspect ?limit (Reifier.find5 ?n0 ?n1 ?n2 ?n3 ?n4 q)]. *)
+
+  val v6 :
+    ?limit:int -> ?n0:string -> ?n1:string -> ?n2:string -> ?n3:string ->
+    ?n4:string -> ?n5:string ->
+    ('a term -> 'b term -> 'c term -> 'd term -> 'e term -> 'f term -> goal) ->
+    state list
+  (** [v5 ?limit ?n0 ?n1 ?n2 ?n3 ?n4 ?n5 q] is
+      [inspect ?limit (Reifier.find6 ?n0 ?n1 ?n2 ?n3 ?n4 ?n5 q)]. *)
+end
 
 (** {1:basics Basics}
 

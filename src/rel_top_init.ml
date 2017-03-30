@@ -4,8 +4,9 @@
    %%NAME%% %%VERSION%%
   ---------------------------------------------------------------------------*)
 
-#install_printer Rel.pp_term;;
 #install_printer Rel.Dom.pp;;
+#install_printer Rel.pp_term;;
+#install_printer Rel.pp_state;;
 
 (*---------------------------------------------------------------------------
    Copyright (c) 2017 Daniel C. Bünzli
