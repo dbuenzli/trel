@@ -15,7 +15,9 @@
     {- Jason Hemann and Daniel P. Friedman.
     {{:http://webyrd.net/scheme-2013/papers/HemannMuKanren2013.pdf}
     {e microKanren: A Minimal
-    Functional Core for Relational Programming}}. In (Scheme '13), 2013.}}
+    Functional Core for Relational Programming}}. In (Scheme '13), 2013.}
+    {- Daniel P. Friedman, William E. Byrd and Oleg Kiselyov.
+       {e The Reasoned Schemer}. The MIT Press, 2005.}}
 
     {e %%VERSION%% — {{:%%PKG_HOMEPAGE%% }homepage}} *)
 
