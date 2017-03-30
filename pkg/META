@@ -4,3 +4,14 @@ archive(byte) = "rel.cma"
 archive(native) = "rel.cmxa"
 plugin(byte) = "rel.cma"
 plugin(native) = "rel.cmxs"
+
+package "top" (
+ version = "%%VERSION_NUM%%"
+ description = "Rel toplevel support"
+ requires = "rel"
+ archive(byte) = "rel_top.cma"
+ archive(native) = "rel_top.cmxa"
+ plugin(byte) = "rel_top.cma"
+ plugin(native) = "rel_top.cmxs"
+ exists_if = "rel_top.cma"
+)
