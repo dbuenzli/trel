@@ -233,15 +233,15 @@ fun ppf -> function
 | Ret (d, ret) ->
     match ret with
     | Pure v -> d.Dom.pp ppf v
-    | App _ as ret ->
-        Fmt.pf ppf "@[<1>(<fun>"; (* FIXME add a name to Ret ? *)
-        pp_ret ppf ret;
-        Fmt.pf ppf ")@]";
+    | App _ as ret -> pp_ret ppf ret (* FIXME add a name to Ret ? *)
 
 and pp_ret : type a. Format.formatter -> a ret -> unit =
 fun ppf -> function
 | Pure _ -> ()
-| App (f, d, v) -> Fmt.pf ppf "@ %a" pp_term v; pp_ret ppf f
+| App (f, d, v) ->
+    Fmt.pf ppf "@[<1>(<fun>";
+    Fmt.pf ppf "@ %a" pp_term v; pp_ret ppf f;
+    Fmt.pf ppf ")@]";
 
 (* Substitutions *)
 
