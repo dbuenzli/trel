@@ -63,7 +63,7 @@ module Seq = struct
 
   let rec bind s f = match s with
   | Empty -> Empty
-  | Cons (v, s) -> mplus (f v) (bind s f)
+  | Cons (v, s) -> mplus (f v) (Delay (lazy (bind s f)))
   | Delay s -> Delay (lazy (bind (Lazy.force s) f))
 
   let rec map f s = match s with

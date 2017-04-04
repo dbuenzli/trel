@@ -45,7 +45,7 @@ let rec seq_mplus s0 s1 = match s0 with
 
 let rec seq_bind s f = match s with
 | Empty -> Empty
-| Cons (v, s) -> seq_mplus (f v) (seq_bind s f)
+| Cons (v, s) -> seq_mplus (f v) (Delay (lazy ((seq_bind s f))))
 | Delay s -> Delay (lazy (seq_bind (Lazy.force s) f))
 
 let rec seq_map f s = match s with
