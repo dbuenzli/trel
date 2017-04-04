@@ -57,6 +57,9 @@ module Make (E : EL) : sig
 
   val rev : t -> t -> Rel.goal
   (** [rev l r] succeeds if [r] is the reverse list of [l]. *)
+
+  val mem : e -> t -> Rel.goal
+  (** [mem e l] succeeds if [e] is a member of [l]. *)
 end
 
 (*---------------------------------------------------------------------------

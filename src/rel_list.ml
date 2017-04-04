@@ -74,8 +74,12 @@ module Make (E : EL) = struct
     (l = empty && r = empty) ||
     (Fresh.v3 @@ fun x xs rt ->
      cons x xs = l &&
-     delay @@ lazy (rev xs rt) &&
-     append rt (cons x empty) r)
+     append rt (cons x empty) r &&
+     delay @@ lazy (rev xs rt))
+
+  let rec mem x l =
+    let open Rel in
+    hd l x || Fresh.v1 @@ fun t -> tl l t && delay (lazy (mem x t))
 end
 
 (*---------------------------------------------------------------------------
