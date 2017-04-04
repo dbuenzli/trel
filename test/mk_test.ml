@@ -32,8 +32,8 @@ let listo d dl =
     (l = empty && r = empty) ||
     (fresh @@ fun x -> fresh @@ fun xs -> fresh @@ fun rt ->
      cons x xs = l &&
-     delay @@ lazy (revo xs rt) &&
-     appendo rt (cons x empty) r)
+     appendo rt (cons x empty) r &&
+     delay @@ lazy (revo xs rt))
   in
   empty, cons, list, appendo, revo
 
@@ -70,7 +70,8 @@ let test_pre_suf () =
   ()
 
 let test_revo () =
-  assert_vals (fun r -> irevo (ilist [1;2;3]) r) [[3;2;1]];
+  assert_vals ~limit:1 (fun r -> irevo (ilist [1;2;3]) r) [[3;2;1]];
+  assert_vals ~limit:1 (fun r -> irevo r (ilist [1;2;3])) [[3;2;1]];
   ()
 
 let test () =
