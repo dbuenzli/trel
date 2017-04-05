@@ -9,36 +9,39 @@
 (** {1 Lists} *)
 
 (** The type for list elements *)
-module type EL = sig
+module type ELT = sig
   type t
+  (** The type of list elements. *)
+
   val dom : t Rel.dom
+  (** The domain of list elements. *)
 end
 
-(** [Make_el (V)] are list elements from the domainable module [V]. *)
-module Make_el (V : Rel.Dom.V) : EL with type t = V.t
+(** [Make_elt (V)] are list elements from the domainable module [V]. *)
+module Make_elt (V : Rel.Dom.V) : ELT with type t = V.t
 
 (** [Make (E)] is a module for relational lists with elements of type [E]. *)
-module Make (E : EL) : sig
+module Make (Elt : ELT) : sig
 
   (** {1 Relational lists} *)
 
-  type t = E.t list Rel.term
+  type t = Elt.t list Rel.term
   (** The type for relational lists. *)
 
-  type e = E.t Rel.term
+  type elt = Elt.t Rel.term
   (** The type for relational list elements. *)
 
-  val dom : E.t list Rel.dom
+  val dom : Elt.t list Rel.dom
 
   (** {1 Term constructors} *)
 
   val empty : t
   (** [empty] is the empty list. *)
 
-  val cons : e -> t -> t
+  val cons : elt -> t -> t
   (** [cons x xs] is the list [x :: xs]. *)
 
-  val v : E.t list -> t
+  val v : Elt.t list -> t
   (** [v l] is [l] as a relational list. *)
 
   (** {1 Relational operations} *)
@@ -46,7 +49,7 @@ module Make (E : EL) : sig
   val is_empty : t -> Rel.goal
   (** [is_empty l] is [Rel.(empty = l)]. *)
 
-  val hd : t -> e -> Rel.goal
+  val hd : t -> elt -> Rel.goal
   (** [hd l x] succeeds if [x] is the head of [l]. *)
 
   val tl : t -> t -> Rel.goal
@@ -58,7 +61,7 @@ module Make (E : EL) : sig
   val rev : t -> t -> Rel.goal
   (** [rev l r] succeeds if [r] is the reverse list of [l]. *)
 
-  val mem : e -> t -> Rel.goal
+  val mem : elt -> t -> Rel.goal
   (** [mem e l] succeeds if [e] is a member of [l]. *)
 end
 

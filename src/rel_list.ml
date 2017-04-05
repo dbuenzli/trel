@@ -4,56 +4,30 @@
    %%NAME%% %%VERSION%%
   ---------------------------------------------------------------------------*)
 
-(*
-module Listo : sig
-  type 'a t = 'a list Rel.term
-
-  val dom : 'a t list Rel.dom
-  val empty : 'a t
-  val cons : 'a Rel.term -> 'a t -> 'a t
-  val v : 'a list -> 'a t
-  val append : 'a t -> 'a t -> 'a t
-end = struct
-  module L = Higher.Newtype1 (struct type 'a t = 'a list end)
-
-  type 'a t = 'a list Rel.term
-
-  let dom = Rel.Dom.v ()
-  let empty = Rel.const (dom ()) []
-  let cons x xs =
-    let open Rel in
-    pure (fun x xs -> x :: xs) |> app (dom ()) x |> app (dom ()) xs
-    |> ret (dom ())
-
-  let v l = failwith "TODO"
-  let append l0 l1 l = failwith "TODO"
-end
-*)
-
-module type EL = sig
+module type ELT = sig
   type t
   val dom : t Rel.dom
 end
 
-module Make_el (V : Rel.Dom.V) = struct
+module Make_elt (V : Rel.Dom.V) = struct
   type t = V.t
   let dom = Rel.Dom.of_type (module V)
 end
 
-module Make (E : EL) = struct
+module Make (Elt : ELT) = struct
 
-  type t = E.t list Rel.term
-  type e = E.t Rel.term
-  let dom = Rel.Dom.list E.dom
+  type t = Elt.t list Rel.term
+  type elt = Elt.t Rel.term
+  let dom = Rel.Dom.list Elt.dom
 
   (* Term constructors *)
 
   let empty = Rel.const dom []
-  let cons x xs = Rel.(pure List.cons |> app E.dom x |> app dom xs |> ret dom)
+  let cons x xs = Rel.(pure List.cons |> app Elt.dom x |> app dom xs |> ret dom)
 
-  let rec v = function
+  let rec v = function (* not T.R. *)
   | [] -> empty
-  | x :: xs -> cons (Rel.const E.dom x) (v xs)
+  | x :: xs -> cons (Rel.const Elt.dom x) (v xs)
 
   (* Relational operations *)
 
