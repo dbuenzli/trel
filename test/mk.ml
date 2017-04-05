@@ -40,18 +40,18 @@ let seq_to_list ?limit s =
 
 let rec seq_mplus s0 s1 = match s0 with
 | Empty -> s1
-| Cons (v, s0) -> Cons (v, Delay (lazy (seq_mplus s1 s0)))
-| Delay s0 -> Delay (lazy (seq_mplus s1 (Lazy.force s0)))
+| Cons (x, xs) -> Cons (x, Delay (lazy (seq_mplus s1 xs)))
+| Delay xs -> Delay (lazy (seq_mplus s1 (Lazy.force xs)))
 
 let rec seq_bind s f = match s with
 | Empty -> Empty
-| Cons (v, s) -> seq_mplus (f v) (Delay (lazy ((seq_bind s f))))
-| Delay s -> Delay (lazy (seq_bind (Lazy.force s) f))
+| Cons (x, xs) -> seq_mplus (f x) (Delay (lazy ((seq_bind xs f))))
+| Delay xs -> Delay (lazy (seq_bind (Lazy.force xs) f))
 
 let rec seq_map f s = match s with
 | Empty -> Empty
-| Cons (v, s) -> Cons (f v, seq_map f s)
-| Delay s -> Delay (lazy (seq_map f (Lazy.force s)))
+| Cons (x, xs) -> Cons (f x, seq_map f xs)
+| Delay xs -> Delay (lazy (seq_map f (Lazy.force xs)))
 
 (* Type identifiers *)
 

@@ -21,22 +21,22 @@ module Seq = struct
   let rec is_empty s = match s with
   | Empty -> true
   | Cons _ -> false
-  | Delay s -> is_empty (Lazy.force s)
+  | Delay xs -> is_empty (Lazy.force xs)
 
   let rec head = function
   | Empty -> None
-  | Cons (v, s) -> Some v
-  | Delay s -> head (Lazy.force s)
+  | Cons (x, _) -> Some x
+  | Delay xs -> head (Lazy.force xs)
 
   let rec get_head = function
   | Empty -> invalid_arg "Sequence is empty"
-  | Cons (v, s) -> v
-  | Delay s -> get_head (Lazy.force s)
+  | Cons (x, _) -> x
+  | Delay xs -> get_head (Lazy.force xs)
 
   let rec tail = function
   | Empty -> invalid_arg "Sequence is empty"
-  | Cons (v, s) -> s
-  | Delay s -> tail (Lazy.force s)
+  | Cons (_, xs) -> xs
+  | Delay xs -> tail (Lazy.force xs)
 
   let to_list ?limit s =
     let limit = match limit with
@@ -50,25 +50,25 @@ module Seq = struct
         match s with
         | Empty -> List.rev acc
         | Delay s -> loop limit acc (Lazy.force s)
-        | Cons (v, s) ->
+        | Cons (x, xs) ->
             let limit = if limit = -1 then limit else limit - 1 in
-            loop limit (v :: acc) s
+            loop limit (x :: acc) xs
     in
     loop limit [] s
 
   let rec mplus s0 s1 = match s0 with
   | Empty -> s1
-  | Cons (v, s0) -> Cons (v, Delay (lazy (mplus s1 s0)))
+  | Cons (x, xs) -> Cons (x, Delay (lazy (mplus s1 xs)))
   | Delay s0 -> Delay (lazy (mplus s1 (Lazy.force s0)))
 
   let rec bind s f = match s with
   | Empty -> Empty
-  | Cons (v, s) -> mplus (f v) (Delay (lazy (bind s f)))
+  | Cons (x, xs) -> mplus (f x) (Delay (lazy (bind xs f)))
   | Delay s -> Delay (lazy (bind (Lazy.force s) f))
 
   let rec map f s = match s with
   | Empty -> Empty
-  | Cons (v, s) -> Cons (f v, map f s)
+  | Cons (x, xs) -> Cons (f x, map f xs)
   | Delay s -> Delay (lazy (map f (Lazy.force s)))
 end
 
