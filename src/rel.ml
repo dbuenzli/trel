@@ -244,7 +244,7 @@ fun ppf -> function
 | Pure _ -> ()
 | App (f, d, v) ->
     Fmt.pf ppf "@[<1>(<fun>";
-    Fmt.pf ppf "@ %a" pp_term v; pp_ret ppf f;
+    Fmt.pf ppf "@ %a %a" pp_term v pp_ret f;
     Fmt.pf ppf ")@]";
 
 (* Substitutions *)

@@ -18,6 +18,7 @@ let test_mem () =
   assert_vals (fun u -> Rel.(L.(mem (int 1) (v [1;2;3])) && (u = unit))) [()];
   assert_vals (fun u -> Rel.(L.(mem (int 4) (v [1;2;3])) && (u = unit))) [];
   assert_vals (fun x -> Rel.(L.(mem x (v [1;2;3])))) [1;2;3];
+  assert_vals (fun x -> Rel.(L.(mem x (v [])))) [];
   assert_vals
     (fun x -> Rel.(L.(mem (int 3) (cons (int 1) (cons x empty))))) [3];
   assert_fvals
