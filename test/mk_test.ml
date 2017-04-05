@@ -8,10 +8,32 @@ let assert_vals ?limit q vals =
   let q = Mk.(query @@ reifier q value_get) in
   assert (Mk.(seq_to_list ?limit @@ run q) = vals)
 
+let assert_find_vals ?limit q vals =
+  let q = Mk.(query @@ reifier q value_find) in
+  assert (Mk.(seq_to_list ?limit @@ run q) = vals)
+
 let assert_2vals ?limit q vals =
   let reify x y = Mk.(value_get x, value_get y) in
   let q = Mk.(query @@ query @@ reifier q reify) in
   assert (Mk.(seq_to_list ?limit @@ run q) = vals)
+
+let dint = Mk.dom ~equal:(( = ) : int -> int -> bool)
+let int = Mk.const dint
+
+let test_fair_disj () =
+  let rec fivel x = Mk.(x = int 5 || delay @@ lazy (fivel x)) in
+  let rec fiver x = Mk.(delay @@ lazy (fiver x) || x = int 5) in
+  assert_vals ~limit:3 fivel [5;5;5];
+  assert_vals ~limit:3 fiver [5;5;5];
+  ()
+
+let test_unfair_conj () =
+  let rec faill x = Mk.(fail && delay @@ lazy (faill x)) in
+  assert_find_vals ~limit:3 faill [];
+(*
+  let rec failr x = Mk.(delay @@ lazy (failr x) && fail) in
+  assert_find_vals ~limit:3 failr []; *)
+  ()
 
 let listo d dl =
   let empty = Mk.(const dl []) in
@@ -37,9 +59,6 @@ let listo d dl =
   in
   empty, cons, list, appendo, revo
 
-let dint = Mk.dom ~equal:(( = ) : int -> int -> bool)
-let int = Mk.const dint
-
 let dilist = Mk.dom ~equal:( = )
 let iempty, icons, ilist, iappendo, irevo = listo dint dilist
 
@@ -52,6 +71,8 @@ let test_appendo () =
   assert_vals (fun l -> iappendo (ilist [1;2]) (ilist [3;4]) l) [[1;2;3;4]];
   assert_vals (fun l -> iappendo l (ilist [3;4]) (ilist [1;2;3;4])) [[1;2]];
   assert_vals (fun l -> iappendo (ilist [1;2]) l (ilist [1;2;3;4])) [[3;4]];
+  assert_vals (fun l -> iappendo l (icons (int 4) iempty) (ilist [1;2;3]))
+    [];
   ()
 
 let test_pre_suf () =
@@ -75,6 +96,8 @@ let test_revo () =
   ()
 
 let test () =
+  test_fair_disj ();
+  test_unfair_conj ();
   test_match ();
   test_appendo ();
   test_pre_suf ();

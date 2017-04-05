@@ -8,10 +8,32 @@ let assert_vals ?limit d q vals =
   let q = Mkv.(query d @@ reifier q value_get) in
   assert (Mkv.(seq_to_list ?limit @@ run q) = vals)
 
+let assert_find_vals ?limit d q vals =
+  let q = Mkv.(query d @@ reifier q value_find) in
+  assert (Mkv.(seq_to_list ?limit @@ run q) = vals)
+
 let assert_2vals ?limit d0 d1 q vals =
   let reify x y = Mkv.(value_get x, value_get y) in
   let q = Mkv.(query d1 @@ query d0 @@ reifier q reify) in
   assert (Mkv.(seq_to_list ?limit @@ run q) = vals)
+
+let dint = Mkv.dom ~equal:(( = ) : int -> int -> bool)
+let int = Mkv.const dint
+
+let test_fair_disj () =
+  let rec fivel x = Mkv.(x = int 5 || delay @@ lazy (fivel x)) in
+  let rec fiver x = Mkv.(delay @@ lazy (fiver x) || x = int 5) in
+  assert_vals ~limit:3 dint fivel [5;5;5];
+  assert_vals ~limit:3 dint fiver [5;5;5];
+  ()
+
+let test_unfair_conj () =
+  let rec faill x = Mkv.(fail && delay @@ lazy (faill x)) in
+  assert_find_vals ~limit:3 dint faill [];
+(*
+  let rec failr x = Mkv.(delay @@ lazy (failr x) && fail) in
+  assert_find_vals ~limit:3 dint failr []; *)
+  ()
 
 let listo d dl =
   let empty = Mkv.(const dl []) in
@@ -36,9 +58,6 @@ let listo d dl =
      delay @@ lazy (revo xs rt))
   in
   empty, cons, list, appendo, revo
-
-let dint = Mkv.dom ~equal:(( = ) : int -> int -> bool)
-let int = Mkv.const dint
 
 let dilist = Mkv.dom ~equal:( = )
 let iempty, icons, ilist, iappendo, irevo = listo dint dilist
@@ -78,6 +97,8 @@ let test_revo () =
   ()
 
 let test () =
+  test_fair_disj ();
+  test_unfair_conj ();
   test_match ();
   test_appendo ();
   test_pre_suf ();

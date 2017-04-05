@@ -5,6 +5,7 @@
   ---------------------------------------------------------------------------*)
 
 let assert_vals ?limit q vals = assert (Rel.Run.get1 ?limit q = vals)
+let assert_find_vals ?limit q vals = assert (Rel.Run.find1 ?limit q = vals)
 let assert_2vals ?limit q vals = assert (Rel.Run.get2 ?limit q = vals)
 
 let test_simple_unify () =
@@ -44,6 +45,20 @@ let test_fapp () =
 let test_delay () =
   let rec fives x = Rel.(x = int 5 || delay (lazy (fives x))) in
   assert_vals ~limit:2 fives [5;5]
+
+let test_fair_disj () =
+  let rec fivel x = Rel.(x = int 5 || delay @@ lazy (fivel x)) in
+  let rec fiver x = Rel.(delay @@ lazy (fiver x) || x = int 5) in
+  assert_vals ~limit:3 fivel [5;5;5];
+  assert_vals ~limit:3 fiver [5;5;5];
+  ()
+
+let test_unfair_conj () =
+  let rec faill x = Rel.(fail && delay @@ lazy (faill x)) in
+  assert_find_vals ~limit:3 faill [];
+(*  let rec failr x = Rel.(delay @@ lazy (failr x) && fail) in
+  assert_find_vals ~limit:3 failr []; *)
+  ()
 
 let listo d dl =
   let empty = Rel.(const dl []) in
@@ -128,6 +143,8 @@ let test () =
   test_pair ();
   test_fapp ();
   test_delay ();
+  test_fair_disj ();
+  test_unfair_conj ();
   test_ilist_appendo ();
   test_ilist_pre_suf ();
   test_ilist_revo ();
