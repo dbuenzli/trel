@@ -59,7 +59,11 @@ module Seq = struct
   let rec mplus s0 s1 = match s0 with
   | Empty -> s1
   | Cons (x, xs) -> Cons (x, Delay (lazy (mplus s1 xs)))
-  | Delay s0 -> Delay (lazy (mplus s1 (Lazy.force s0)))
+  | Delay xs ->
+      match s1 with
+      | Empty -> s0
+      | Cons (y, ys) -> Cons (y, Delay (lazy (mplus (Lazy.force xs) ys)))
+      | Delay ys -> Delay (lazy (mplus (Lazy.force xs) s1))
 
   let rec bind s f = match s with
   | Empty -> Empty

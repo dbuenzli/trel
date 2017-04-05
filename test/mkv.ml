@@ -37,7 +37,11 @@ let seq_to_list ?limit s =
 let rec seq_mplus s0 s1 = match s0 with
 | Empty -> s1
 | Cons (x, xs) -> Cons (x, Delay (lazy (seq_mplus s1 xs)))
-| Delay xs -> Delay (lazy (seq_mplus s1 (Lazy.force xs)))
+| Delay xs ->
+    match s1 with
+    | Empty -> s0
+    | Cons (y, ys) -> Cons (y, Delay (lazy (seq_mplus (Lazy.force xs) ys)))
+    | Delay ys -> Delay (lazy (seq_mplus (Lazy.force xs) s1))
 
 let rec seq_bind s f = match s with
 | Empty -> Empty
