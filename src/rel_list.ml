@@ -34,6 +34,9 @@ module Make (Elt : ELT) = struct
   let is_empty l = Rel.(l = empty)
   let hd l x = Rel.(fresh @@ fun xs -> cons x xs = l)
   let tl l xs = Rel.(fresh @@ fun x -> cons x xs = l)
+  let rec mem x l =
+    let open Rel in
+    hd l x || Fresh.v1 @@ fun t -> tl l t && delay (lazy (mem x t))
 
   let rec append l0 l1 l =
     let open Rel in
@@ -50,10 +53,6 @@ module Make (Elt : ELT) = struct
      cons x xs = l &&
      append rt (cons x empty) r &&
      delay @@ lazy (rev xs rt))
-
-  let rec mem x l =
-    let open Rel in
-    hd l x || Fresh.v1 @@ fun t -> tl l t && delay (lazy (mem x t))
 end
 
 (*---------------------------------------------------------------------------

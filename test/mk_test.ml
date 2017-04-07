@@ -75,6 +75,14 @@ let test_appendo () =
     [];
   ()
 
+let test_appendo3 () =
+  let a x y z o = Mk.(fresh @@ fun l -> iappendo x y l && iappendo l z o) in
+  assert_vals (fun l -> a (ilist [1]) (ilist [2]) (ilist [3]) l) [[1;2;3]];
+  assert_vals (fun l -> a (ilist [1]) (ilist [2]) l (ilist [1;2;3])) [[3]];
+  assert_vals (fun l -> a (ilist [1]) l (ilist [3]) (ilist [1;2;3])) [[2]];
+(*  assert_vals (fun l -> a l (ilist [2]) (ilist [3]) (ilist [1;2;3])) [[1]]; *)
+  ()
+
 let test_pre_suf () =
   let pre l pre = Mk.(fresh @@ fun suf -> iappendo pre suf l) in
   let suf l suf = Mk.(fresh @@ fun pre -> iappendo pre suf l) in
@@ -100,6 +108,7 @@ let test () =
   test_unfair_conj ();
   test_match ();
   test_appendo ();
+  test_appendo3 ();
   test_pre_suf ();
   test_revo ();
   print_endline "All Mk tests succeeded!";

@@ -44,10 +44,13 @@ module Make (Elt : ELT) : sig
   val v : Elt.t list -> t
   (** [v l] is [l] as a relational list. *)
 
-  (** {1 Relational operations} *)
+  (** {1 Goals} *)
 
   val is_empty : t -> Rel.goal
   (** [is_empty l] is [Rel.(empty = l)]. *)
+
+  val mem : elt -> t -> Rel.goal
+  (** [mem e l] succeeds if [e] is a member of [l]. *)
 
   val hd : t -> elt -> Rel.goal
   (** [hd l x] succeeds if [x] is the head of [l]. *)
@@ -60,9 +63,6 @@ module Make (Elt : ELT) : sig
 
   val rev : t -> t -> Rel.goal
   (** [rev l r] succeeds if [r] is the reverse list of [l]. *)
-
-  val mem : elt -> t -> Rel.goal
-  (** [mem e l] succeeds if [e] is a member of [l]. *)
 end
 
 (*---------------------------------------------------------------------------
