@@ -4,7 +4,7 @@
    %%NAME%% %%VERSION%%
   ---------------------------------------------------------------------------*)
 
-let assert_vals ?limit q vals = assert (Rel.Run.get1 ?limit q = vals)
+let assert_vals ?limit q vals = assert (Trel.Run.get1 ?limit q = vals)
 
 module Tree = struct
   type t = Node of int * t * t | Leaf
@@ -27,14 +27,14 @@ module Treeo = struct
 
   let lt i i' = failwith "TODO"
 
-  let dom = Rel.Dom.of_type (module Tree)
-  let leaf = Rel.const dom Tree.leaf
+  let dom = Trel.Dom.of_type (module Tree)
+  let leaf = Trel.const dom Tree.leaf
   let node v l r =
-    let open Rel in
+    let open Trel in
     pure Tree.node |> app Dom.int v |> app dom l |> app dom r |> ret dom
 
   let rec insert v t t' =
-    let open Rel in
+    let open Trel in
     (t = leaf && t' = node v leaf leaf) ||
     (Fresh.v4 @@ fun i l r b ->
      (t = node i l r) &&

@@ -4,7 +4,7 @@
    %%NAME%% %%VERSION%%
   ---------------------------------------------------------------------------*)
 
-let strf = Fmt.strf
+let strf = Fmt.str
 
 (* Lazy sequences of values. *)
 

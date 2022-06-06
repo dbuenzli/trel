@@ -1,4 +1,4 @@
-PKG bytes fmt
+PKG bytes fmt astring
 S src
 S test
 B _build/**

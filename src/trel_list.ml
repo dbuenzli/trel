@@ -6,40 +6,40 @@
 
 module type ELT = sig
   type t
-  val dom : t Rel.dom
+  val dom : t Trel.dom
 end
 
-module Make_elt (V : Rel.Dom.V) = struct
+module Make_elt (V : Trel.Dom.V) = struct
   type t = V.t
-  let dom = Rel.Dom.of_type (module V)
+  let dom = Trel.Dom.of_type (module V)
 end
 
 module Make (Elt : ELT) = struct
 
-  type t = Elt.t list Rel.term
-  type elt = Elt.t Rel.term
-  let dom = Rel.Dom.list Elt.dom
+  type t = Elt.t list Trel.term
+  type elt = Elt.t Trel.term
+  let dom = Trel.Dom.list Elt.dom
 
   (* Term constructors *)
 
-  let empty = Rel.const dom []
-  let cons x xs = Rel.(pure List.cons |> app Elt.dom x |> app dom xs |> ret dom)
+  let empty = Trel.const dom []
+  let cons x xs = Trel.(pure List.cons |> app Elt.dom x |> app dom xs |> ret dom)
 
   let rec v = function (* not T.R. *)
   | [] -> empty
-  | x :: xs -> cons (Rel.const Elt.dom x) (v xs)
+  | x :: xs -> cons (Trel.const Elt.dom x) (v xs)
 
-  (* Relational operations *)
+  (* Trelational operations *)
 
-  let is_empty l = Rel.(l = empty)
-  let hd l x = Rel.(fresh @@ fun xs -> cons x xs = l)
-  let tl l xs = Rel.(fresh @@ fun x -> cons x xs = l)
+  let is_empty l = Trel.(l = empty)
+  let hd l x = Trel.(fresh @@ fun xs -> cons x xs = l)
+  let tl l xs = Trel.(fresh @@ fun x -> cons x xs = l)
   let rec mem x l =
-    let open Rel in
+    let open Trel in
     hd l x || Fresh.v1 @@ fun t -> tl l t && delay (lazy (mem x t))
 
   let rec append l0 l1 l =
-    let open Rel in
+    let open Trel in
     (l0 = empty && l1 = l) ||
     (Fresh.v3 @@ fun x xs ltl ->
      cons x xs = l0 &&
@@ -47,7 +47,7 @@ module Make (Elt : ELT) = struct
      delay @@ lazy (append xs l1 ltl))
 
   let rec rev l r =
-    let open Rel in
+    let open Trel in
     (l = empty && r = empty) ||
     (Fresh.v3 @@ fun x xs rt ->
      cons x xs = l &&

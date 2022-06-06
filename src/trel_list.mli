@@ -13,25 +13,25 @@ module type ELT = sig
   type t
   (** The type of list elements. *)
 
-  val dom : t Rel.dom
+  val dom : t Trel.dom
   (** The domain of list elements. *)
 end
 
 (** [Make_elt (V)] are list elements from the domainable module [V]. *)
-module Make_elt (V : Rel.Dom.V) : ELT with type t = V.t
+module Make_elt (V : Trel.Dom.V) : ELT with type t = V.t
 
 (** [Make (E)] is a module for relational lists with elements of type [E]. *)
 module Make (Elt : ELT) : sig
 
   (** {1 Relational lists} *)
 
-  type t = Elt.t list Rel.term
+  type t = Elt.t list Trel.term
   (** The type for relational lists. *)
 
-  type elt = Elt.t Rel.term
+  type elt = Elt.t Trel.term
   (** The type for relational list elements. *)
 
-  val dom : Elt.t list Rel.dom
+  val dom : Elt.t list Trel.dom
 
   (** {1 Term constructors} *)
 
@@ -46,22 +46,22 @@ module Make (Elt : ELT) : sig
 
   (** {1 Goals} *)
 
-  val is_empty : t -> Rel.goal
-  (** [is_empty l] is [Rel.(empty = l)]. *)
+  val is_empty : t -> Trel.goal
+  (** [is_empty l] is [Trel.(empty = l)]. *)
 
-  val mem : elt -> t -> Rel.goal
+  val mem : elt -> t -> Trel.goal
   (** [mem e l] succeeds if [e] is a member of [l]. *)
 
-  val hd : t -> elt -> Rel.goal
+  val hd : t -> elt -> Trel.goal
   (** [hd l x] succeeds if [x] is the head of [l]. *)
 
-  val tl : t -> t -> Rel.goal
+  val tl : t -> t -> Trel.goal
   (** [tl l xs] succeeds if [xs] is the tail of [l]. *)
 
-  val append : t -> t -> t -> Rel.goal
+  val append : t -> t -> t -> Trel.goal
   (** [append l0 l1 l] succeeds if [l1] appended to [l0] is [l]. *)
 
-  val rev : t -> t -> Rel.goal
+  val rev : t -> t -> Trel.goal
   (** [rev l r] succeeds if [r] is the reverse list of [l]. *)
 end
 

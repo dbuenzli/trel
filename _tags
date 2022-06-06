@@ -1,5 +1,8 @@
-true : bin_annot, safe_string, package(bytes), package(fmt)
+true : bin_annot, package(fmt)
 
+<_b0> : -traverse
 <src> : include
-<src/rel_top.*> : package(compiler-libs.toplevel)
+<src/trel_top.*> : package(compiler-libs.toplevel)
+<test/reliza.*> : package(astring)
+<test/sreliza.*> : package(astring)
 <test> : include

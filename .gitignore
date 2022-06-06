@@ -1,8 +1,3 @@
+_b0
 _build
 tmp
-*~
-\.\#*
-\#*#
-*.install
-*.native
-*.byte

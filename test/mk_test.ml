@@ -68,11 +68,10 @@ let test_match () =
   ()
 
 let test_appendo () =
-  assert_vals (fun l -> iappendo (ilist [1;2]) (ilist [3;4]) l) [[1;2;3;4]];
   assert_vals (fun l -> iappendo l (ilist [3;4]) (ilist [1;2;3;4])) [[1;2]];
   assert_vals (fun l -> iappendo (ilist [1;2]) l (ilist [1;2;3;4])) [[3;4]];
-  assert_vals (fun l -> iappendo l (icons (int 4) iempty) (ilist [1;2;3]))
-    [];
+  assert_vals (fun l -> iappendo (ilist [1;2]) (ilist [3;4]) l) [[1;2;3;4]];
+  assert_vals (fun l -> iappendo l (ilist [4]) (ilist [1;2;3])) [];
   ()
 
 let test_appendo3 () =
@@ -80,7 +79,8 @@ let test_appendo3 () =
   assert_vals (fun l -> a (ilist [1]) (ilist [2]) (ilist [3]) l) [[1;2;3]];
   assert_vals (fun l -> a (ilist [1]) (ilist [2]) l (ilist [1;2;3])) [[3]];
   assert_vals (fun l -> a (ilist [1]) l (ilist [3]) (ilist [1;2;3])) [[2]];
-(*  assert_vals (fun l -> a l (ilist [2]) (ilist [3]) (ilist [1;2;3])) [[1]]; *)
+  assert_vals ~limit:1
+    (fun l -> a l (ilist [2]) (ilist [3]) (ilist [1;2;3])) [[1]];
   ()
 
 let test_pre_suf () =

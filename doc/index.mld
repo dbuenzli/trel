@@ -1,0 +1,13 @@
+{0 Rel {%html: <span class="version">%%VERSION%%</span>%}}
+
+Trel is a typed relational programming language embedded in OCaml. Its
+term language is arbitrarily extensible allowing clients to inject and
+project OCaml values and functions for seamless interaction between
+Trel and regular OCaml programs.
+
+{1:api API}
+
+{!modules:
+Trel
+Trel_list
+}
